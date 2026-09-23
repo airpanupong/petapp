@@ -1,0 +1,37 @@
+# Environment
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React Native
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/ios/DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# IDE / OS
+.idea/
+.vscode/*.log
+.DS_Store
+Thumbs.db
+
+# Secrets / service files
+mobile/android/app/google-services.json
+mobile/ios/GoogleService-Info.plist

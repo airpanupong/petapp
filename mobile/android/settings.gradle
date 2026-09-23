@@ -1,0 +1,17 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
+  def nodeBinary = System.getenv("NODE_BINARY") ?: [
+      "/usr/local/bin/node",
+      "/opt/homebrew/bin/node",
+  ].find { new File(it).exists() } ?: "node"
+  def cliJs = new File(
+      settings.rootDir,
+      "../node_modules/@react-native-community/cli/build/bin.js"
+  ).absolutePath
+  // Use absolute node path so Android Studio Gradle sync works without shell PATH.
+  ex.autolinkLibrariesFromCommand([nodeBinary, cliJs, "config"])
+}
+rootProject.name = 'PetAppMobile'
+include ':app'
+includeBuild('../node_modules/@react-native/gradle-plugin')

@@ -1,0 +1,97 @@
+{
+  "buildFiles": [
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/@react-native-community/geolocation/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-keychain/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-maps/android/src/main/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-nitro-modules/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-permissions/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt",
+    "/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/3dzx/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/3dzx/Downloads/PetApp/mobile/android/app/.cxx/Debug/3n3t4c35/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/3dzx/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/3dzx/Downloads/PetApp/mobile/android/app/.cxx/Debug/3n3t4c35/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "react_codegen_safeareacontext::@7984cd80db47aa7b952a": {
+      "artifactName": "react_codegen_safeareacontext",
+      "abi": "x86",
+      "output": "/Users/3dzx/Downloads/PetApp/mobile/android/app/build/intermediates/cxx/Debug/3n3t4c35/obj/x86/libreact_codegen_safeareacontext.so",
+      "runtimeFiles": [
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/3cb1792e16d0777e9535521c99f0b7b5/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so"
+      ]
+    },
+    "react_codegen_RNPermissionsSpec::@7ad697819b753921c957": {
+      "artifactName": "react_codegen_RNPermissionsSpec",
+      "abi": "x86",
+      "runtimeFiles": []
+    },
+    "react_codegen_rnscreens::@25bcbd507e98d3a854ad": {
+      "artifactName": "react_codegen_rnscreens",
+      "abi": "x86",
+      "output": "/Users/3dzx/Downloads/PetApp/mobile/android/app/build/intermediates/cxx/Debug/3n3t4c35/obj/x86/libreact_codegen_rnscreens.so",
+      "runtimeFiles": [
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/3cb1792e16d0777e9535521c99f0b7b5/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so"
+      ]
+    },
+    "appmodules::@6890427a1f51a3e7e1df": {
+      "artifactName": "appmodules",
+      "abi": "x86",
+      "output": "/Users/3dzx/Downloads/PetApp/mobile/android/app/build/intermediates/cxx/Debug/3n3t4c35/obj/x86/libappmodules.so",
+      "runtimeFiles": [
+        "/Users/3dzx/Downloads/PetApp/mobile/android/app/build/intermediates/cxx/Debug/3n3t4c35/obj/x86/libreact_codegen_safeareacontext.so",
+        "/Users/3dzx/Downloads/PetApp/mobile/android/app/build/intermediates/cxx/Debug/3n3t4c35/obj/x86/libreact_codegen_rnscreens.so",
+        "/Users/3dzx/Downloads/PetApp/mobile/android/app/build/intermediates/cxx/Debug/3n3t4c35/obj/x86/libreact_codegen_rnsvg.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/3cb1792e16d0777e9535521c99f0b7b5/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so"
+      ]
+    },
+    "react_codegen_NitroModulesSpec::@472a82f9c57d3d3b8644": {
+      "artifactName": "react_codegen_NitroModulesSpec",
+      "abi": "x86",
+      "runtimeFiles": []
+    },
+    "react_codegen_RNKeychainSpec::@f9a2cb36ebca2de4baf9": {
+      "artifactName": "react_codegen_RNKeychainSpec",
+      "abi": "x86",
+      "runtimeFiles": []
+    },
+    "react_codegen_rnsvg::@4f40eb209d0c0b4a3b65": {
+      "artifactName": "react_codegen_rnsvg",
+      "abi": "x86",
+      "output": "/Users/3dzx/Downloads/PetApp/mobile/android/app/build/intermediates/cxx/Debug/3n3t4c35/obj/x86/libreact_codegen_rnsvg.so",
+      "runtimeFiles": [
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/2f3f04f29a7d86f4d7cc17e86688042f/transformed/react-android-0.87.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/Users/3dzx/.gradle/caches/9.4.1/transforms/3cb1792e16d0777e9535521c99f0b7b5/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so"
+      ]
+    },
+    "react_codegen_RNMapsSpecs::@5748abef1962d24942ec": {
+      "artifactName": "react_codegen_RNMapsSpecs",
+      "abi": "x86",
+      "runtimeFiles": []
+    },
+    "react_codegen_RNCGeolocationSpec::@1b959fcb56e23f7716ba": {
+      "artifactName": "react_codegen_RNCGeolocationSpec",
+      "abi": "x86",
+      "runtimeFiles": []
+    }
+  }
+}

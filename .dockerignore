@@ -1,0 +1,10 @@
+.git
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/android/.gradle
+**/android/app/build
+**/ios/Pods
+**/ios/build
+.env
+*.zip

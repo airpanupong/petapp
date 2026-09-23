@@ -1,0 +1,9 @@
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/@react-native-community/geolocation/android/build/generated/source/codegen/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-keychain/android/build/generated/source/codegen/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-maps/android/src/main/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-nitro-modules/android/build/generated/source/codegen/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-permissions/android/build/generated/source/codegen/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt
+/Users/3dzx/Downloads/PetApp/mobile/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt

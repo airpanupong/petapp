@@ -1,0 +1,4 @@
+/Users/3dzx/Downloads/PetApp/mobile/android/app/.cxx/Debug/3n3t4c35/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+/Users/3dzx/Downloads/PetApp/mobile/android/app/.cxx/Debug/3n3t4c35/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+/Users/3dzx/Downloads/PetApp/mobile/android/app/.cxx/Debug/3n3t4c35/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+/Users/3dzx/Downloads/PetApp/mobile/android/app/.cxx/Debug/3n3t4c35/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir
