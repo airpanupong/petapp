@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from functools import lru_cache
 from pathlib import Path
@@ -14,9 +15,17 @@ from app.core.exceptions import AppError
 
 logger = logging.getLogger(__name__)
 
-LOCAL_UPLOAD_DIR = Path("/data/uploads")
-if not LOCAL_UPLOAD_DIR.exists():
-    LOCAL_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads"
+def _local_upload_dir() -> Path:
+    # Without a persistent volume, files on the container disk vanish on every deploy.
+    volume = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+    if volume:
+        return Path(volume) / "uploads"
+    if Path("/data").is_dir():
+        return Path("/data/uploads")
+    return Path(__file__).resolve().parents[2] / "uploads"
+
+
+LOCAL_UPLOAD_DIR = _local_upload_dir()
 LOCAL_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 

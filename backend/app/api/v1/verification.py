@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.exceptions import AppError
+from app.core.roles import is_staff
 from app.core.responses import success
 from app.models.features import OwnershipVerification
 from app.models.user import User
@@ -40,7 +41,7 @@ def submit_verification(pet_id: str, payload: OwnershipVerificationCreate, db: S
 
 @router.get("/admin/ownership-verifications")
 def admin_list(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
+    if not is_staff(current_user.role):
         raise AppError(403, "AUTH_FORBIDDEN", "Admin role required")
     rows = db.scalars(select(OwnershipVerification).order_by(OwnershipVerification.submitted_at.desc()).limit(200)).all()
     return success([OwnershipVerificationRead.model_validate(x).model_dump(mode="json") for x in rows])
@@ -48,7 +49,7 @@ def admin_list(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 @router.post("/admin/ownership-verifications/{verification_id}/review")
 def admin_review(verification_id: str, payload: OwnershipReview, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
+    if not is_staff(current_user.role):
         raise AppError(403, "AUTH_FORBIDDEN", "Admin role required")
     row = db.get(OwnershipVerification, verification_id)
     if row is None:

@@ -582,7 +582,7 @@ def run() -> None:
             ("sighting", "อัปเดตเบาะแส Momo", "Community Helper ส่งตำแหน่งล่าสุด", "lost_post", momo_lost.id, True),
             ("guardian", "Guardian ตอบรับแล้ว", "Family Guardian สามารถช่วย mark lost ได้", "pet", momo.id, True),
             ("verification", "ยืนยันความเป็นเจ้าของ", "คำขอ microchip ของ Momo รอตรวจสอบ", "pet", momo.id, False),
-            ("system", "ยินดีต้อนรับสู่ PetApp", "สำรวจ Pet ID, QR และแผนที่ใกล้ฉันได้เลย", None, None, True),
+            ("system", "ยินดีต้อนรับสู่ Pet haii", "สำรวจ Pet ID, QR และแผนที่ใกล้ฉันได้เลย", None, None, True),
         ]
         for typ, title, body, ref_type, ref_id, is_read in notif_rows:
             exists = db.scalar(

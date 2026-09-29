@@ -82,3 +82,4 @@ class MessageRead(BaseModel):
     image_url: str | None = None
     created_at: datetime
     read_at: datetime | None = None
+    context: dict | None = None

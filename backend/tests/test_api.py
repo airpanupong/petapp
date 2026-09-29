@@ -187,6 +187,23 @@ def test_full_feature_modules(client):
         json={"seen_at": "2026-09-22T05:00:00Z", "latitude": 13.757, "longitude": 100.502, "location_text": "Nearby road"},
     )
     assert sighting.status_code == 201, sighting.text
+    assert sighting.json()["data"]["image_urls"] == []
+
+    photos = [f"https://cdn.example.com/s{i}.jpg" for i in range(3)]
+    with_photos = client.post(
+        f"/api/v1/lost-posts/{lost_id}/sightings",
+        headers=hh,
+        json={"seen_at": "2026-09-22T06:00:00Z", "latitude": 13.757, "longitude": 100.502, "image_urls": photos},
+    )
+    assert with_photos.status_code == 201, with_photos.text
+    assert with_photos.json()["data"]["image_urls"] == photos
+    assert with_photos.json()["data"]["image_url"] == photos[0]
+    too_many = client.post(
+        f"/api/v1/lost-posts/{lost_id}/sightings",
+        headers=hh,
+        json={"seen_at": "2026-09-22T06:00:00Z", "latitude": 13.757, "longitude": 100.502, "image_urls": [*photos, photos[0]]},
+    )
+    assert too_many.status_code == 422
 
     found_alert = client.post(
         f"/api/v1/public/pets/qr/{pet['qr_token']}/found-alert",
@@ -204,3 +221,26 @@ def test_full_feature_modules(client):
     assert public.status_code == 200
     assert public.json()["data"]["emergency"]["public_allergies"] == "Chicken"
     assert public.json()["data"]["emergency"]["emergency_contact_phone"] == "0800000000"
+
+
+def test_upload_is_downscaled_and_reencoded(client):
+    import io
+
+    from PIL import Image
+
+    auth = register(client, "uploader@example.com")
+    buf = io.BytesIO()
+    Image.linear_gradient("L").resize((3000, 2000)).convert("RGB").save(buf, "PNG")
+    res = client.post(
+        "/api/v1/uploads",
+        headers={"Authorization": f"Bearer {auth['access_token']}"},
+        files={"file": ("big.png", buf.getvalue(), "image/png")},
+    )
+    assert res.status_code == 201, res.text
+    filename = res.json()["data"]["filename"]
+    assert filename.endswith(".jpg")
+    got = client.get(f"/api/v1/uploads/files/{filename}")
+    assert got.status_code == 200
+    assert "immutable" in got.headers["cache-control"]
+    with Image.open(io.BytesIO(got.content)) as img:
+        assert max(img.size) == 1600

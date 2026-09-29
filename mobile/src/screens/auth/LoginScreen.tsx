@@ -1,12 +1,11 @@
 import React, {useState} from 'react';
-import {Alert, StyleSheet, Text, View} from 'react-native';
+import {Alert, Image, StyleSheet, Text, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {AuthStackParamList} from '../../navigation/types';
 import {Screen} from '../../components/Screen';
 import {AppInput} from '../../components/AppInput';
 import {AppButton} from '../../components/AppButton';
-import {AppIcon} from '../../components/AppIcon';
 import {GlassView} from '../../components/GlassView';
 import {colors, radius, shadow, spacing, typography} from '../../theme';
 import {useAuthStore} from '../../store/authStore';
@@ -50,8 +49,8 @@ export function LoginScreen({navigation}: Props) {
         />
       </View>
       <View style={styles.hero}>
-        <View style={styles.pawBubble}>
-          <AppIcon name="paw" size={40} color={colors.primaryDark} />
+        <View style={styles.logoWrap}>
+          <Image source={require('../../assets/logo-icon.png')} style={styles.logo} accessibilityLabel="Pet haii" />
         </View>
         <Text style={styles.title}>{t('welcome')}</Text>
         <Text style={styles.subtitle}>{t('welcomeSub')}</Text>
@@ -89,15 +88,8 @@ const styles = StyleSheet.create({
   langRow: {alignItems: 'flex-end'},
   langBtn: {minHeight: 40, paddingHorizontal: 14, shadowOpacity: 0, elevation: 0},
   hero: {alignItems: 'center', gap: 8, marginBottom: spacing.md},
-  pawBubble: {
-    width: 94,
-    height: 94,
-    borderRadius: 47,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.soft,
-  },
+  logoWrap: {borderRadius: 24, ...shadow.soft},
+  logo: {width: 96, height: 96, borderRadius: 24},
   title: {fontSize: typography.display, fontWeight: '900', color: colors.text, letterSpacing: -0.8},
   subtitle: {fontSize: typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 24},
   card: {borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md},

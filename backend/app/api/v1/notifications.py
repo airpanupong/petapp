@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.exceptions import AppError
 from app.core.responses import success
-from app.models.features import AppNotification, DeviceToken, LostCaseFollower, NotificationPreference, UserLocation
+from app.core.config import settings
+from app.core.pagination import older_than
+from app.models.features import AppNotification, DeviceToken, LostCaseFollower, NotificationPreference, UserLocation, WebPushSubscription
 from app.models.lost_found import LostPost
 from app.models.user import User
-from app.schemas.features import DeviceTokenCreate, DeviceTokenRead, NotificationPreferenceRead, NotificationPreferenceUpdate, NotificationRead, UserLocationUpdate
+from app.schemas.features import (
+    DeviceTokenCreate, DeviceTokenRead, NotificationPreferenceRead, NotificationPreferenceUpdate, NotificationRead,
+    UserLocationUpdate, WebPushSubscribe, WebPushUnsubscribe,
+)
+from app.services.web_push_service import send_web_push_to_user, web_push_enabled
 
 router = APIRouter(tags=["notifications"])
 
@@ -25,9 +31,31 @@ def get_or_create_prefs(db: Session, user_id: str) -> NotificationPreference:
 
 
 @router.get("/notifications")
-def list_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    rows = db.scalars(select(AppNotification).where(AppNotification.user_id == current_user.id).order_by(AppNotification.created_at.desc()).limit(100)).all()
+def list_notifications(
+    before: str | None = None,
+    limit: int = Query(100, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stmt = select(AppNotification).where(AppNotification.user_id == current_user.id)
+    cursor = older_than(db, AppNotification, AppNotification.created_at, before)
+    if cursor is not None:
+        stmt = stmt.where(cursor)
+    rows = db.scalars(stmt.order_by(AppNotification.created_at.desc(), AppNotification.id.desc()).limit(limit)).all()
     return success([NotificationRead.model_validate(x).model_dump(mode="json") for x in rows])
+
+
+@router.get("/notifications/unread-count")
+def notifications_unread_count(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Chat messages have their own badge on the chat icon.
+    count = db.scalar(
+        select(func.count(AppNotification.id)).where(
+            AppNotification.user_id == current_user.id,
+            AppNotification.is_read.is_(False),
+            AppNotification.type != "chat_message",
+        )
+    ) or 0
+    return success({"count": count})
 
 
 @router.post("/notifications/{notification_id}/read")
@@ -46,6 +74,20 @@ def mark_all_read(db: Session = Depends(get_db), current_user: User = Depends(ge
         row.is_read = True
     db.commit()
     return success({"updated": len(rows)})
+
+
+@router.delete("/notifications/{notification_id}", status_code=204)
+def delete_notification(notification_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db.execute(delete(AppNotification).where(AppNotification.id == notification_id, AppNotification.user_id == current_user.id))
+    db.commit()
+    return None
+
+
+@router.delete("/notifications")
+def delete_all_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = db.execute(delete(AppNotification).where(AppNotification.user_id == current_user.id))
+    db.commit()
+    return success({"deleted": result.rowcount})
 
 
 @router.get("/notification-preferences")
@@ -107,3 +149,37 @@ def register_device(payload: DeviceTokenCreate, db: Session = Depends(get_db), c
         row.user_id = current_user.id; row.device_id = payload.device_id; row.is_active = True
     db.commit(); db.refresh(row)
     return success(DeviceTokenRead.model_validate(row).model_dump(mode="json"))
+
+
+@router.get("/push/web/config")
+def web_push_config():
+    enabled = web_push_enabled()
+    return success({"enabled": enabled, "public_key": settings.vapid_public_key if enabled else None})
+
+
+@router.post("/push/web/subscriptions", status_code=201)
+def web_push_subscribe(payload: WebPushSubscribe, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_agent = (request.headers.get("user-agent") or "")[:300] or None
+    row = db.scalar(select(WebPushSubscription).where(WebPushSubscription.endpoint == payload.endpoint))
+    if row is None:
+        row = WebPushSubscription(user_id=current_user.id, endpoint=payload.endpoint, p256dh=payload.keys.p256dh, auth=payload.keys.auth, user_agent=user_agent)
+        db.add(row)
+    else:
+        row.user_id = current_user.id; row.p256dh = payload.keys.p256dh; row.auth = payload.keys.auth; row.user_agent = user_agent
+    db.commit()
+    return success({"subscribed": True})
+
+
+@router.post("/push/web/unsubscribe")
+def web_push_unsubscribe(payload: WebPushUnsubscribe, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db.execute(delete(WebPushSubscription).where(WebPushSubscription.endpoint == payload.endpoint, WebPushSubscription.user_id == current_user.id))
+    db.commit()
+    return success({"subscribed": False})
+
+
+@router.post("/push/web/test")
+def web_push_test(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not web_push_enabled():
+        raise AppError(503, "WEB_PUSH_DISABLED", "Web push is not configured")
+    sent = send_web_push_to_user(db, current_user.id, "Pet haii", "เปิดการแจ้งเตือนเรียบร้อยแล้ว เราจะบอกทันทีเมื่อมีน้องหายใกล้คุณ")
+    return success({"sent": sent})

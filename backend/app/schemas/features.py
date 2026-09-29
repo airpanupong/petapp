@@ -118,6 +118,20 @@ class DeviceTokenCreate(BaseModel):
     device_id: str | None = Field(default=None, max_length=200)
 
 
+class WebPushKeys(BaseModel):
+    p256dh: str = Field(min_length=1, max_length=200)
+    auth: str = Field(min_length=1, max_length=100)
+
+
+class WebPushSubscribe(BaseModel):
+    endpoint: str = Field(min_length=12, max_length=1000, pattern=r"^https://")
+    keys: WebPushKeys
+
+
+class WebPushUnsubscribe(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=1000)
+
+
 class DeviceTokenRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

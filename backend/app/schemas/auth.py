@@ -20,3 +20,16 @@ class RefreshRequest(BaseModel):
 
 class LogoutRequest(BaseModel):
     refresh_token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyResetCodeRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\s*\d{6}\s*$")
+
+
+class ResetPasswordRequest(VerifyResetCodeRequest):
+    new_password: str = Field(min_length=8, max_length=128)

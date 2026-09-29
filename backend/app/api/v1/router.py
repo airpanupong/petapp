@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
-    admin, ads, auth, chat, emergency, found_posts, guardians, health, lost_posts,
+    admin, ads, auth, chat, emergency, feed, found_posts, geo, guardians, health, lost_posts,
     moderation, nearby, notifications, pet_images, pets, sightings, uploads, users, verification,
 )
 
@@ -16,8 +16,10 @@ api_router.include_router(emergency.router)
 api_router.include_router(verification.router)
 api_router.include_router(lost_posts.router)
 api_router.include_router(found_posts.router)
+api_router.include_router(feed.router)
 api_router.include_router(sightings.router)
 api_router.include_router(nearby.router)
+api_router.include_router(geo.router)
 api_router.include_router(notifications.router)
 api_router.include_router(ads.router)
 api_router.include_router(chat.router)

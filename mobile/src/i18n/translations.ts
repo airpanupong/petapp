@@ -3,7 +3,7 @@ export type Locale = 'th' | 'en';
 export type TranslationKey = keyof typeof th;
 
 const th = {
-  appName: 'PetApp',
+  appName: 'Pet haii',
   tabs_home: 'หน้าแรก',
   tabs_nearby: 'ใกล้ฉัน',
   tabs_report: 'แจ้งเรื่อง',
@@ -74,7 +74,7 @@ const th = {
   language: 'ภาษา',
   languageTh: 'ไทย',
   languageEn: 'English',
-  version: 'Pet App · Full Feature MVP',
+  version: 'Pet haii · Full Feature MVP',
 
   welcome: 'ยินดีต้อนรับ',
   welcomeSub: 'พื้นที่ปลอดภัยสำหรับสัตว์เลี้ยงและชุมชนของคุณ',
@@ -154,7 +154,7 @@ const th = {
 } as const;
 
 const en: Record<TranslationKey, string> = {
-  appName: 'PetApp',
+  appName: 'Pet haii',
   tabs_home: 'Home',
   tabs_nearby: 'Nearby',
   tabs_report: 'Report',
@@ -225,7 +225,7 @@ const en: Record<TranslationKey, string> = {
   language: 'Language',
   languageTh: 'ไทย',
   languageEn: 'English',
-  version: 'Pet App · Full Feature MVP',
+  version: 'Pet haii · Full Feature MVP',
 
   welcome: 'Welcome',
   welcomeSub: 'A safer space for pets and your community',

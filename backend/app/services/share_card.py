@@ -46,7 +46,7 @@ def generate_share_card(
     draw.text((120, 560), "Last seen / Found at", fill=(140, 150, 146), font=_font(28))
     draw.text((120, 620), (location or "—")[:70], fill=(28, 40, 36), font=_font(44))
     draw.text((120, 760), date_text[:40], fill=(90, 110, 104), font=_font(36))
-    draw.text((120, 1100), "PetApp · Help pets get home", fill=accent, font=_font(32))
+    draw.text((120, 1100), "Pet haii · Help pets get home", fill=accent, font=_font(32))
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)

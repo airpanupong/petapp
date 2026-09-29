@@ -18,7 +18,7 @@ def normalize_database_url(url: str) -> str:
 
 
 class Settings(BaseSettings):
-    app_name: str = "PetApp API"
+    app_name: str = "Pet haii API"
     app_env: Literal["development", "test", "production"] = "development"
     api_v1_prefix: str = "/api/v1"
     secret_key: str = "dev-only-change-me"
@@ -39,6 +39,21 @@ class Settings(BaseSettings):
     s3_force_path_style: bool = True
     s3_presign_endpoint: str | None = None
     firebase_credentials_json: str | None = None
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+    vapid_subject: str = "mailto:support@pethaii.com"
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "Pet haii <support@pethaii.com>"
+    # HTTPS email API (https://resend.com). Preferred over SMTP when set; Railway Hobby blocks SMTP ports.
+    resend_api_key: str | None = None
+
+    super_admin_email: str = "support@pethaii.com"
+    # Only used to create the super admin account when it does not exist yet.
+    super_admin_password: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

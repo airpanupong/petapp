@@ -1,0 +1,23 @@
+;; pethaii.com — Cloudflare DNS import (BIND format)
+;; Cloudflare: DNS > Records > Import and Export > Import DNS records
+;; Delete the Squarespace A records on @ and the www -> ext-sq.squarespace.com CNAME first,
+;; otherwise the CNAME records for @ and www will be rejected.
+$ORIGIN pethaii.com.
+$TTL 3600
+
+;; Web app (Railway) — apex CNAME is flattened by Cloudflare
+@                     1  IN  CNAME  4a0o6rvd.up.railway.app.  ; cf_tags=cf-proxied:false
+_railway-verify       1  IN  TXT    "railway-verify=bfd7bfb1685214579a2ab416b7f9454034ada5fed260a8940ee5ecc106037830"
+
+;; API (Railway)
+api                   1  IN  CNAME  0lvfpkxb.up.railway.app.  ; cf_tags=cf-proxied:false
+_railway-verify.api   1  IN  TXT    "railway-verify=684d1eb24d23a3a611a30e375420648bacd8e042d5f01086352bbd56f76dad71"
+
+;; www -> redirected to https://pethaii.com by a Cloudflare Redirect Rule (must be proxied)
+www                   1  IN  CNAME  pethaii.com.  ; cf_tags=cf-proxied:true
+
+;; Google Workspace email
+@                     1  IN  MX     1 smtp.google.com.
+@                     1  IN  TXT    "v=spf1 include:_spf.google.com ~all"
+google._domainkey     1  IN  TXT    "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuFfNYpQNTsbo20RBL9Fdtqq0Amw9Tk0uwEvlAEzAMsX1VVn+/56B5ccBd3nV2hSJRmn1pjI/z9T0Ag1an0ZXHDGpO/U3MYoUqXrYLVnJzS+kzoHaDqEJRmSUrZOExmjJ5k1l8F5QzglQWo+ZfKFZh6EOu8ymdfs877oDojVkK1+j/vP+1QM4teqo+rLW" "kywgPxIPpvdEawDvJouIj+HaM/TRQoRnaIATVECAiS9aSIPoxKzkqA7o5bZ+kyw1X1kTXeuWJWGuO6mv9KHMKznonfl2YrbqkGOqRUdUbnARCJoTcouVY58Ht/5mYf8SLrcxWxjiiF+3iNjiaG2yBVRt4wIDAQAB"
+_dmarc                1  IN  TXT    "v=DMARC1; p=none; rua=mailto:support@pethaii.com"

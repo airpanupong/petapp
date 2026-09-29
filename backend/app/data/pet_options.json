@@ -1,0 +1,398 @@
+{
+ "dog": {
+  "breed": [
+   {
+    "id": "mixed_thai",
+    "th": "ไทยพันทาง / พันธุ์ผสม",
+    "en": "Thai Mixed Breed / Native"
+   },
+   {
+    "id": "pomeranian",
+    "th": "ปอมเมอเรเนียน",
+    "en": "Pomeranian"
+   },
+   {
+    "id": "golden_retriever",
+    "th": "โกลเด้น รีทรีฟเวอร์",
+    "en": "Golden Retriever"
+   },
+   {
+    "id": "poodle",
+    "th": "พุดเดิ้ล / พุดเดิ้ลทอย",
+    "en": "Poodle / Toy Poodle"
+   },
+   {
+    "id": "shih_tzu",
+    "th": "ชิสุ",
+    "en": "Shih Tzu"
+   },
+   {
+    "id": "chihuahua",
+    "th": "ชิวาวา",
+    "en": "Chihuahua"
+   },
+   {
+    "id": "corgi",
+    "th": "คอร์กี้ (เพมโบรค / คาร์ดิแกน)",
+    "en": "Welsh Corgi"
+   },
+   {
+    "id": "french_bulldog",
+    "th": "เฟรนช์ บูลด็อก",
+    "en": "French Bulldog"
+   },
+   {
+    "id": "siberian_husky",
+    "th": "ไซบีเรียน ฮัสกี้",
+    "en": "Siberian Husky"
+   },
+   {
+    "id": "labrador_retriever",
+    "th": "ลาบราดอร์ รีทรีฟเวอร์",
+    "en": "Labrador Retriever"
+   },
+   {
+    "id": "thai_bangkaew",
+    "th": "ไทยบางแก้ว",
+    "en": "Thai Bangkaew"
+   },
+   {
+    "id": "thai_ridgeback",
+    "th": "ไทยหลังอาน",
+    "en": "Thai Ridgeback"
+   },
+   {
+    "id": "shiba_inu",
+    "th": "ชิบะ อินุ",
+    "en": "Shiba Inu"
+   },
+   {
+    "id": "beagle",
+    "th": "บีเกิ้ล",
+    "en": "Beagle"
+   },
+   {
+    "id": "maltese",
+    "th": "มอลทีส",
+    "en": "Maltese"
+   },
+   {
+    "id": "samoyed",
+    "th": "ซามอยด์",
+    "en": "Samoyed"
+   },
+   {
+    "id": "pug",
+    "th": "ปั๊ก",
+    "en": "Pug"
+   },
+   {
+    "id": "dachshund",
+    "th": "ดัชชุน (ไส้กรอก)",
+    "en": "Dachshund"
+   },
+   {
+    "id": "pitbull_bully",
+    "th": "อเมริกัน พิทบูล / อเมริกัน บูลลี่",
+    "en": "American Pit Bull / Bully"
+   },
+   {
+    "id": "german_shepherd",
+    "th": "เยอรมัน เชพเพิร์ด (อัลเซเชียน)",
+    "en": "German Shepherd"
+   },
+   {
+    "id": "rottweiler",
+    "th": "ร็อตไวเลอร์",
+    "en": "Rottweiler"
+   },
+   {
+    "id": "dobermann",
+    "th": "โดเบอร์แมน",
+    "en": "Dobermann"
+   },
+   {
+    "id": "border_collie",
+    "th": "บอร์เดอร์ คอลลี่",
+    "en": "Border Collie"
+   },
+   {
+    "id": "alaskan_malamute",
+    "th": "อลาสกัน มาลามิวท์",
+    "en": "Alaskan Malamute"
+   },
+   {
+    "id": "chow_chow",
+    "th": "เชาเชา",
+    "en": "Chow Chow"
+   },
+   {
+    "id": "jack_russell",
+    "th": "แจ็ครัสเซลล์ เทอร์เรีย",
+    "en": "Jack Russell Terrier"
+   },
+   {
+    "id": "yorkshire_terrier",
+    "th": "ยอร์กเชียร์ เทอร์เรีย",
+    "en": "Yorkshire Terrier"
+   },
+   {
+    "id": "schnauzer",
+    "th": "ชเนาเซอร์",
+    "en": "Miniature Schnauzer"
+   },
+   {
+    "id": "dalmatian",
+    "th": "ดัลเมเชียน",
+    "en": "Dalmatian"
+   }
+  ],
+  "color": [
+   {
+    "id": "white",
+    "th": "สีขาว",
+    "en": "White"
+   },
+   {
+    "id": "black",
+    "th": "สีดำ",
+    "en": "Black"
+   },
+   {
+    "id": "brown_tan",
+    "th": "สีน้ำตาล / แทน",
+    "en": "Brown / Tan"
+   },
+   {
+    "id": "golden_cream",
+    "th": "สีทอง / ครีม",
+    "en": "Golden / Cream"
+   },
+   {
+    "id": "red_brown",
+    "th": "สีน้ำตาลแดง / ส้ม",
+    "en": "Red / Copper"
+   },
+   {
+    "id": "black_white",
+    "th": "ขาว-ดำ",
+    "en": "Black & White"
+   },
+   {
+    "id": "brown_white",
+    "th": "ขาว-น้ำตาล",
+    "en": "Brown & White"
+   },
+   {
+    "id": "tricolor",
+    "th": "สามสี (ขาว ดำ น้ำตาล)",
+    "en": "Tricolor"
+   },
+   {
+    "id": "black_tan",
+    "th": "ดำ-แทน (มีแต้มคิ้ว/อก)",
+    "en": "Black & Tan"
+   },
+   {
+    "id": "grey_silver",
+    "th": "สีเทา / สีเงิน",
+    "en": "Grey / Silver"
+   },
+   {
+    "id": "brindle",
+    "th": "ลายเสือ / ลายริ้ว (Brindle)",
+    "en": "Brindle"
+   },
+   {
+    "id": "merle",
+    "th": "ลายหินอ่อน (Merle)",
+    "en": "Merle"
+   },
+   {
+    "id": "spotted",
+    "th": "ลายแต้ม / ลายจุด",
+    "en": "Spotted / Piebald"
+   }
+  ]
+ },
+ "cat": {
+  "breed": [
+   {
+    "id": "domestic_shorthair",
+    "th": "แมวไทย / แมวบ้าน (พันทาง)",
+    "en": "Domestic Short Hair / Thai Native"
+   },
+   {
+    "id": "british_shorthair",
+    "th": "บริติช ช็อตแฮร์",
+    "en": "British Shorthair"
+   },
+   {
+    "id": "scottish_fold",
+    "th": "สก็อตติช โฟลด์",
+    "en": "Scottish Fold"
+   },
+   {
+    "id": "persian",
+    "th": "เปอร์เซีย",
+    "en": "Persian"
+   },
+   {
+    "id": "american_shorthair",
+    "th": "อเมริกัน ช็อตแฮร์",
+    "en": "American Shorthair"
+   },
+   {
+    "id": "khao_manee",
+    "th": "ขาวมณี",
+    "en": "Khao Manee"
+   },
+   {
+    "id": "siamese_wichienmaat",
+    "th": "วิเชียรมาศ",
+    "en": "Siamese (Wichienmaat)"
+   },
+   {
+    "id": "korat_sisawat",
+    "th": "โคราช / สีสวาด",
+    "en": "Korat (Si Sawat)"
+   },
+   {
+    "id": "suphalak",
+    "th": "ศุภลักษณ์ / ทองแดง",
+    "en": "Suphalak"
+   },
+   {
+    "id": "konja",
+    "th": "โกนจา (ดำปลอด)",
+    "en": "Konja"
+   },
+   {
+    "id": "maine_coon",
+    "th": "เมนคูน",
+    "en": "Maine Coon",
+    "aliases": [
+     "แมนคูน",
+     "เมนคูล"
+    ]
+   },
+   {
+    "id": "ragdoll",
+    "th": "แร็กดอลล์",
+    "en": "Ragdoll"
+   },
+   {
+    "id": "munchkin",
+    "th": "มันช์กิ้น (ขาสั้น)",
+    "en": "Munchkin"
+   },
+   {
+    "id": "bengal",
+    "th": "เบงกอล",
+    "en": "Bengal"
+   },
+   {
+    "id": "exotic_shorthair",
+    "th": "เอ็กโซติก ช็อตแฮร์",
+    "en": "Exotic Shorthair"
+   },
+   {
+    "id": "russian_blue",
+    "th": "รัสเซียน บลู",
+    "en": "Russian Blue"
+   },
+   {
+    "id": "sphynx",
+    "th": "สฟิงซ์ (ไร้ขน)",
+    "en": "Sphynx"
+   },
+   {
+    "id": "abyssinian",
+    "th": "อะบิสซิเนียน",
+    "en": "Abyssinian"
+   },
+   {
+    "id": "norwegian_forest",
+    "th": "นอร์วิเจียน ฟอเรสต์",
+    "en": "Norwegian Forest"
+   },
+   {
+    "id": "burmese",
+    "th": "เบอร์มีส",
+    "en": "Burmese"
+   },
+   {
+    "id": "devon_rex",
+    "th": "เดวอน เร็กซ์",
+    "en": "Devon Rex"
+   }
+  ],
+  "color": [
+   {
+    "id": "orange_tabby",
+    "th": "สีส้ม / ส้มลายสลิด (แมวส้ม)",
+    "en": "Orange / Red Tabby"
+   },
+   {
+    "id": "grey_tabby",
+    "th": "สีเทาลายสลิด / ลายเสือ",
+    "en": "Grey Tabby / Classic Tabby"
+   },
+   {
+    "id": "white",
+    "th": "สีขาวปลอด",
+    "en": "Solid White"
+   },
+   {
+    "id": "black",
+    "th": "สีดำปลอด",
+    "en": "Solid Black"
+   },
+   {
+    "id": "tuxedo",
+    "th": "ขาว-ดำ (ทักซิโด้)",
+    "en": "Bicolor / Tuxedo"
+   },
+   {
+    "id": "white_orange",
+    "th": "ขาว-ส้ม",
+    "en": "White & Orange"
+   },
+   {
+    "id": "calico",
+    "th": "สามสี (ขาว ดำ ส้ม)",
+    "en": "Calico (Tricolor)"
+   },
+   {
+    "id": "tortoiseshell",
+    "th": "สีกระดองเต่า / ลายเปรอะ",
+    "en": "Tortoiseshell"
+   },
+   {
+    "id": "blue_grey",
+    "th": "สีเทาบลู / เทาควันบุหรี่",
+    "en": "Blue / Solid Grey"
+   },
+   {
+    "id": "colorpoint",
+    "th": "สีแต้มเข้ม (วิเชียรมาศ/พอยต์)",
+    "en": "Colorpoint (Seal Point)"
+   },
+   {
+    "id": "brown_tabby",
+    "th": "สีน้ำตาลลายสลิด",
+    "en": "Brown Tabby"
+   },
+   {
+    "id": "cream_buff",
+    "th": "สีครีม / นมเย็น",
+    "en": "Cream / Buff"
+   },
+   {
+    "id": "chinchilla_silver",
+    "th": "สีเงินชินชิล่า",
+    "en": "Chinchilla Silver"
+   }
+  ]
+ }
+}

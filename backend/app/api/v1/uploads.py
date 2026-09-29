@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import io
+import logging
 import uuid
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import FileResponse
@@ -13,6 +14,8 @@ from app.models.user import User
 from app.schemas.moderation import PresignRequest
 from app.services.storage import get_storage
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 ALLOWED_TYPES = {
@@ -23,6 +26,31 @@ ALLOWED_TYPES = {
     "image/heic": ".heic",
 }
 MAX_BYTES = 8 * 1024 * 1024
+MAX_SIDE = 1600
+
+
+def _optimize(data: bytes, ext: str, media: str) -> tuple[bytes, str, str]:
+    """Rotate per EXIF, cap the long side and re-encode; keep the original if Pillow cannot read it."""
+    try:
+        from PIL import Image, ImageOps
+
+        with Image.open(io.BytesIO(data)) as img:
+            img = ImageOps.exif_transpose(img)
+            resized = max(img.size) > MAX_SIDE
+            img.thumbnail((MAX_SIDE, MAX_SIDE))
+            out = io.BytesIO()
+            has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+            if has_alpha:
+                img.save(out, "WEBP", quality=85)
+                result = (out.getvalue(), ".webp", "image/webp")
+            else:
+                img.convert("RGB").save(out, "JPEG", quality=85, optimize=True, progressive=True)
+                result = (out.getvalue(), ".jpg", "image/jpeg")
+        keep_original = not resized and len(data) <= len(result[0]) and ext != ".heic"
+        return (data, ext, media) if keep_original else result
+    except Exception as exc:  # noqa: BLE001
+        logger.info("Image optimize skipped: %s", exc)
+        return data, ext, media
 
 
 def _resolve_ext(content_type: str, filename: str | None) -> tuple[str, str]:
@@ -82,6 +110,7 @@ async def upload_image(
     if len(data) > MAX_BYTES:
         raise AppError(400, "UPLOAD_TOO_LARGE", "Image must be 8MB or smaller")
 
+    data, ext, media_type = _optimize(data, ext, media_type)
     filename = f"{uuid.uuid4().hex}{ext}"
     key = f"uploads/{filename}"
     storage = get_storage()
@@ -108,4 +137,4 @@ def get_local_file(filename: str):
         media = "image/png"
     elif name.endswith(".webp"):
         media = "image/webp"
-    return FileResponse(path, media_type=media)
+    return FileResponse(path, media_type=media, headers={"Cache-Control": "public, max-age=31536000, immutable"})

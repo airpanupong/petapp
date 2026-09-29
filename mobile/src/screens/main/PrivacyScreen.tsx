@@ -14,7 +14,7 @@ export function PrivacyScreen(_props: Props) {
       <View style={styles.card}>
         <Text style={styles.title}>ความเป็นส่วนตัว</Text>
         <Text style={styles.body}>
-          PetApp ใช้ตำแหน่งเพื่อแสดงประกาศใกล้คุณ และแจ้งเตือนเมื่อมีสัตว์หายในรัศมีที่คุณตั้งค่า
+          Pet haii ใช้ตำแหน่งเพื่อแสดงประกาศใกล้คุณ และแจ้งเตือนเมื่อมีสัตว์หายในรัศมีที่คุณตั้งค่า
         </Text>
       </View>
       <View style={styles.card}>

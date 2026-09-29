@@ -1,0 +1,39 @@
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	root * /srv
+	encode zstd gzip
+
+	@www host www.pethaii.com
+	redir @www https://pethaii.com{uri} permanent
+
+	@asset {
+		path /assets/*
+		file
+	}
+	handle @asset {
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Hashed bundles from an older deploy must 404, never fall back to index.html.
+	handle /assets/* {
+		header Cache-Control "no-store"
+		respond 404
+	}
+
+	handle /sw.js {
+		header Cache-Control "no-cache"
+		header Service-Worker-Allowed "/"
+		file_server
+	}
+
+	handle {
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

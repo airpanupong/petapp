@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.features import DeviceToken
+from app.services.web_push_service import send_web_push_to_user
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,15 @@ def _firebase_app():
 
 
 def send_push_to_user(db: Session, user_id: str, title: str, body: str, data: dict | None = None) -> int:
+    web_sent = 0
+    try:
+        web_sent = send_web_push_to_user(db, user_id, title, body, data)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Web push dispatch failed for %s: %s", user_id, exc)
+    return web_sent + _send_fcm_to_user(db, user_id, title, body, data)
+
+
+def _send_fcm_to_user(db: Session, user_id: str, title: str, body: str, data: dict | None = None) -> int:
     tokens = db.scalars(
         select(DeviceToken).where(DeviceToken.user_id == user_id, DeviceToken.is_active.is_(True))
     ).all()

@@ -9,9 +9,13 @@ from app.core.exceptions import AppError
 from app.core.responses import success
 from app.core.security import hash_password, verify_password, utcnow
 from app.models.user import User
-from app.schemas.auth import LoginRequest, LogoutRequest, RefreshRequest, RegisterRequest
+from app.schemas.auth import (
+    ForgotPasswordRequest, LoginRequest, LogoutRequest, RefreshRequest, RegisterRequest, ResetPasswordRequest,
+    VerifyResetCodeRequest,
+)
 from app.schemas.user import UserRead
 from app.services.auth_service import issue_token_pair, revoke_refresh_token, rotate_refresh_token
+from app.services.password_reset_service import request_reset_code, reset_password, verify_reset_code
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -56,3 +60,23 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 def logout(payload: LogoutRequest, db: Session = Depends(get_db)):
     revoke_refresh_token(db, payload.refresh_token)
     return success(message="Logged out")
+
+
+@router.post("/password/forgot")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    return success(request_reset_code(db, payload.email))
+
+
+@router.post("/password/verify")
+def verify_password_code(payload: VerifyResetCodeRequest, db: Session = Depends(get_db)):
+    verify_reset_code(db, payload.email, payload.code)
+    return success({"valid": True})
+
+
+@router.post("/password/reset")
+def reset_password_with_code(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = reset_password(db, payload.email, payload.code, payload.new_password)
+    user.last_login_at = utcnow()
+    db.commit()
+    tokens = issue_token_pair(db, user)
+    return success({"user": UserRead.model_validate(user).model_dump(mode="json"), **tokens})

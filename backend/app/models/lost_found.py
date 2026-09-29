@@ -1,16 +1,38 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 
+CHECKIN_INTERVAL = timedelta(days=7)
+CHECKIN_RESPONSE_WINDOW = timedelta(days=7)
+MAX_POST_PHOTOS = 3
+
+
 def uuid_str() -> str:
     return str(uuid.uuid4())
+
+
+def photo_columns(urls: list[str | None]) -> dict:
+    """image_url stays the cover photo so single-image readers keep working."""
+    images = list(dict.fromkeys(u for u in urls if u))[:MAX_POST_PHOTOS]
+    return {"image_url": images[0] if images else None, "image_urls": images or None}
+
+
+def photo_update(fields: dict) -> dict:
+    """Pops photo keys from a PATCH payload and returns the columns to write (an empty image_urls clears all photos)."""
+    urls = fields.pop("image_urls", None)
+    single = fields.pop("image_url", None)
+    if urls is not None:
+        return photo_columns(urls)
+    if single:
+        return photo_columns([single])
+    return {}
 
 
 class LostPost(Base):
@@ -30,14 +52,24 @@ class LostPost(Base):
     reward_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     reward_text: Mapped[str | None] = mapped_column(String(300), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     share_token: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The weekly "found yet?" cycle counts from checkin_base_at (or created_at when unset).
+    checkin_base_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    checkin_asked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     pet = relationship("Pet")
     owner = relationship("User")
     sightings = relationship("Sighting", back_populates="lost_post", cascade="all, delete-orphan")
+
+    @property
+    def checkin_deadline_at(self) -> datetime | None:
+        if self.checkin_asked_at is None or self.status != "active":
+            return None
+        return self.checkin_asked_at + CHECKIN_RESPONSE_WINDOW
 
 
 class FoundPost(Base):
@@ -50,6 +82,7 @@ class FoundPost(Base):
     color: Mapped[str | None] = mapped_column(String(120), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     found_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
@@ -75,6 +108,7 @@ class Sighting(Base):
     direction: Mapped[str | None] = mapped_column(String(80), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     lost_post = relationship("LostPost", back_populates="sightings")

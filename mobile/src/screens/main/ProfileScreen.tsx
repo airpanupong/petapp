@@ -39,7 +39,7 @@ export function ProfileScreen() {
 
   const items = [
     ...menu,
-    ...(user?.role === 'admin'
+    ...(user?.role === 'admin' || user?.role === 'super_admin'
       ? [
           {
             icon: 'construct-outline',

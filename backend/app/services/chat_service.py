@@ -1,12 +1,30 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
-from app.models.community import Conversation, ConversationMember
+from app.models.community import Conversation, ConversationMember, Message
 from app.models.moderation import UserBlock
 from app.models.user import User
+
+
+# A chat marker saying which post the conversation moved on to; content is "<type>:<reference_id>".
+CONTEXT_MESSAGE = "context"
+
+
+def add_context_message(db: Session, conversation: Conversation, sender_id: str) -> None:
+    db.add(
+        Message(
+            conversation_id=conversation.id,
+            sender_id=sender_id,
+            message_type=CONTEXT_MESSAGE,
+            content=f"{conversation.type}:{conversation.reference_id}",
+            read_at=datetime.now(timezone.utc),
+        )
+    )
 
 
 def find_or_create_conversation(
@@ -35,7 +53,7 @@ def find_or_create_conversation(
     if other is None:
         raise AppError(404, "USER_NOT_FOUND", "User not found")
 
-    # Reuse existing 1:1 conversation with same type + reference when possible
+    # One conversation per pair of people; a different post just adds a topic marker.
     my_ids = set(
         db.scalars(
             select(ConversationMember.conversation_id).where(ConversationMember.user_id == current_user.id)
@@ -48,11 +66,16 @@ def find_or_create_conversation(
     )
     shared = my_ids & other_ids
     if shared:
-        stmt = select(Conversation).where(Conversation.id.in_(shared), Conversation.type == conv_type)
-        if reference_id:
-            stmt = stmt.where(Conversation.reference_id == reference_id)
-        existing = db.scalars(stmt.order_by(Conversation.created_at.desc())).first()
+        existing = db.scalars(
+            select(Conversation).where(Conversation.id.in_(shared)).order_by(Conversation.created_at.desc())
+        ).first()
         if existing is not None:
+            if reference_id and (existing.type, existing.reference_id) != (conv_type, reference_id):
+                existing.type = conv_type
+                existing.reference_id = reference_id
+                add_context_message(db, existing, current_user.id)
+                db.commit()
+                db.refresh(existing)
             return existing
 
     conversation = Conversation(type=conv_type, reference_id=reference_id)
@@ -64,6 +87,8 @@ def find_or_create_conversation(
             ConversationMember(conversation_id=conversation.id, user_id=other_user_id),
         ]
     )
+    if reference_id:
+        add_context_message(db, conversation, current_user.id)
     db.commit()
     db.refresh(conversation)
     return conversation

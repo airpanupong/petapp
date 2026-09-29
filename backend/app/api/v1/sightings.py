@@ -39,7 +39,16 @@ def create_sighting(
         raise AppError(404, "LOST_POST_NOT_FOUND", "Lost post not found")
     if post.status != "active":
         raise AppError(409, "LOST_POST_ALREADY_RESOLVED", "This lost case is closed")
-    row = Sighting(lost_post_id=lost_post_id, reporter_id=current_user.id, **payload.model_dump())
+    data = payload.model_dump()
+    images = [url for url in [*data.pop("image_urls"), data.pop("image_url")] if url]
+    images = list(dict.fromkeys(images))[:3]
+    row = Sighting(
+        lost_post_id=lost_post_id,
+        reporter_id=current_user.id,
+        image_url=images[0] if images else None,
+        image_urls=images or None,
+        **data,
+    )
     db.add(row)
     db.flush()
     notify_sighting(db, post, current_user.id)
