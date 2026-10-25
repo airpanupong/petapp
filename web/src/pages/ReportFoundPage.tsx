@@ -19,6 +19,7 @@ import {LocationPicker} from '../components/LocationPicker';
 import {MultiImagePicker} from '../components/MultiImagePicker';
 import {downscaleImage} from '../lib/image';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {AnimalOption, PetMascot} from '../components/PetMascot';
 import {PetAttributeField} from '../components/PetAttributeField';
 import {EmptyState, Optional, PageTitle} from '../components/ui';
@@ -34,7 +35,8 @@ export default function ReportFoundPage() {
 function EditFoundPost({id}: {id: string}) {
   const me = useAuthStore(s => s.user);
   const post = useQuery({queryKey: ['found-post', id], queryFn: () => getFoundPost(id)});
-  if (post.isLoading) return <CatLoader label="กำลังเปิดประกาศ" />;
+  const opening = useAssembleHold(post.isLoading);
+  if (opening.show) return <AssembleScope id={opening.id}><CatLoader label="กำลังเปิดประกาศ" /></AssembleScope>;
   if (!post.data) return <EmptyState animal="cat" title="ไม่พบประกาศนี้" />;
   if (post.data.reporter_id !== me?.id) return <EmptyState animal="cat" title="แก้ไขได้เฉพาะผู้โพสต์" />;
   if (post.data.status !== 'active') return <EmptyState animal="cat" title="ประกาศนี้ปิดแล้ว แก้ไขไม่ได้" />;

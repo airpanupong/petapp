@@ -23,6 +23,7 @@ import {animalLabel, formatDate} from '../lib/format';
 import {toast} from '../store/toastStore';
 import {confirmAction} from '../store/confirmStore';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {MediaImage} from '../components/MediaImage';
 import {Avatar, EmptyState, Optional, StatusBadge} from '../components/ui';
 
@@ -35,7 +36,8 @@ export default function PetDetailPage() {
   const [tab, setTab] = useState<Tab>('info');
   const qrRef = useRef<HTMLDivElement>(null);
 
-  if (pet.isLoading) return <CatLoader label="กำลังเรียกน้องมา" />;
+  const opening = useAssembleHold(pet.isLoading);
+  if (opening.show) return <AssembleScope id={opening.id}><CatLoader label="กำลังเรียกน้องมา" /></AssembleScope>;
   if (!pet.data) return <EmptyState animal="cat" title="ไม่พบข้อมูลน้อง" />;
   const p = pet.data;
   const publicUrl = `${window.location.origin}/p/${p.qr_token}`;
@@ -187,7 +189,8 @@ function HealthPanel({petId}: {petId: string}) {
     onSuccess: () => void qc.invalidateQueries({queryKey: ['vaccines', petId]}),
   });
 
-  if (health.isLoading) return <CatLoader size="sm" label="" />;
+  const loadingHealth = useAssembleHold(health.isLoading);
+  if (loadingHealth.show) return <AssembleScope id={loadingHealth.id}><CatLoader size="sm" label="" /></AssembleScope>;
 
   return (
     <>
@@ -290,7 +293,8 @@ function EmergencyPanel({petId}: {petId: string}) {
     onError: e => toast.error(getApiErrorMessage(e)),
   });
 
-  if (info.isLoading) return <CatLoader size="sm" label="" />;
+  const loadingInfo = useAssembleHold(info.isLoading);
+  if (loadingInfo.show) return <AssembleScope id={loadingInfo.id}><CatLoader size="sm" label="" /></AssembleScope>;
 
   return (
     <form

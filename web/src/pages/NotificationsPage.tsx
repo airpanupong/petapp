@@ -20,6 +20,7 @@ import {usePostAction} from '../lib/postActions';
 import {toast} from '../store/toastStore';
 import {confirmAction} from '../store/confirmStore';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {InfiniteSentinel} from '../components/InfiniteSentinel';
 import {AnimalOption} from '../components/PetMascot';
 import {EmptyState, PageTitle} from '../components/ui';
@@ -66,6 +67,7 @@ export default function NotificationsPage() {
   const rows = list.data?.pages.flat() ?? [];
   const {fetchNextPage} = list;
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const showList = useAssembleHold(list.isLoading);
 
   const readAll = useMutation({
     mutationFn: markAllNotificationsRead,
@@ -131,8 +133,8 @@ export default function NotificationsPage() {
       />
       <div className="split">
         <div>
-          {list.isLoading ? (
-            <CatLoader label="กำลังเช็คข่าวใหม่" />
+          {showList.show ? (
+            <AssembleScope id={showList.id}><CatLoader label="กำลังเช็คข่าวใหม่" /></AssembleScope>
           ) : rows.length ? (
             <div className="list">
               {rows.map(n => {
@@ -208,7 +210,9 @@ function Preferences() {
     onError: e => toast.error(getApiErrorMessage(e)),
   });
 
-  if (!form) return <CatLoader size="sm" label="" />;
+  const waitingPrefs = useAssembleHold(!form);
+  if (waitingPrefs.show) return <AssembleScope id={waitingPrefs.id}><CatLoader size="sm" label="" /></AssembleScope>;
+  if (!form) return null;
 
   return (
     <div className="card form">

@@ -3,7 +3,7 @@ import {useQuery} from '@tanstack/react-query';
 import {Plus} from 'lucide-react';
 
 import {listPets} from '../api/pets.api';
-import {CatLoader} from '../components/CatLoader';
+import {CardSkeleton} from '../components/CardSkeleton';
 import {PetCard} from '../components/PostCards';
 import {EmptyState, PageTitle} from '../components/ui';
 
@@ -22,7 +22,7 @@ export default function PetsPage() {
         }
       />
       {pets.isLoading ? (
-        <CatLoader label="กำลังเรียกน้อง ๆ มาเข้าแถว" />
+        <CardSkeleton />
       ) : pets.data?.length ? (
         <div className="grid grid-3 grid-4">
           {pets.data.map(p => (

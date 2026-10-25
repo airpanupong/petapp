@@ -9,7 +9,7 @@ import {trackAdEvent} from '../api/features.api';
 import {resolveMediaUrl} from '../api/uploads.api';
 import {useAuthStore} from '../store/authStore';
 import {FoundPost, LostPost} from '../types/api';
-import {CatLoader} from '../components/CatLoader';
+import {CardSkeleton} from '../components/CardSkeleton';
 import {FoundCard, LostCard} from '../components/PostCards';
 import {AnimalOption} from '../components/PetMascot';
 import {PetScene} from '../components/PetScene';
@@ -150,7 +150,7 @@ export default function HomePage() {
       </div>
 
       {loading ? (
-        <CatLoader label="กำลังเรียกน้อง ๆ มาเข้าแถว" />
+        <CardSkeleton />
       ) : items.length ? (
         <div className="grid grid-3 grid-4 home-grid">
           {items.map(i =>

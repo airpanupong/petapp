@@ -15,6 +15,7 @@ import {confirmAction} from '../store/confirmStore';
 import {formatTime} from '../lib/format';
 import {cursorOf} from '../lib/pagination';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {InfiniteSentinel} from '../components/InfiniteSentinel';
 import {ChatContextBanner, ChatContextDivider} from '../components/ChatContext';
 import {Avatar, StaffBadge} from '../components/ui';
@@ -43,6 +44,7 @@ export default function ChatThreadPage() {
   const shown = useRef<{first?: string; last?: string}>({});
   const {fetchNextPage} = messages;
   const loadOlder = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const showMessages = useAssembleHold(messages.isLoading);
   const fileRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
@@ -161,8 +163,8 @@ export default function ChatThreadPage() {
           className="chat-body"
           ref={bodyRef}
           onScroll={e => (fromBottom.current = e.currentTarget.scrollHeight - e.currentTarget.scrollTop)}>
-          {messages.isLoading ? (
-            <CatLoader size="sm" label="" />
+          {showMessages.show ? (
+            <AssembleScope id={showMessages.id}><CatLoader size="sm" label="" /></AssembleScope>
           ) : rows.some(m => m.message_type !== 'context') ? (
             <>
             <InfiniteSentinel hasMore={!!messages.hasNextPage} loading={messages.isFetchingNextPage} onLoadMore={loadOlder} rootRef={bodyRef} />

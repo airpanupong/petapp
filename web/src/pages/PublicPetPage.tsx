@@ -13,6 +13,7 @@ import {toast} from '../store/toastStore';
 import {getCurrentPosition} from '../lib/geo';
 import {animalLabel} from '../lib/format';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {MediaImage} from '../components/MediaImage';
 import {BrandMark, EmptyState, StatusBadge} from '../components/ui';
 
@@ -45,8 +46,9 @@ export default function PublicPetPage() {
     onError: e => toast.error(getApiErrorMessage(e)),
   });
 
+  const opening = useAssembleHold(pet.isLoading);
   const content = () => {
-    if (pet.isLoading) return <CatLoader size="lg" label="กำลังเปิดบัตรประจำตัวน้อง" />;
+    if (opening.show) return <AssembleScope id={opening.id}><CatLoader size="lg" label="กำลังเปิดบัตรประจำตัวน้อง" /></AssembleScope>;
     if (!pet.data) return <EmptyState animal="cat" title="ไม่พบ Pet Haii นี้" description="QR อาจไม่ถูกต้องหรือเจ้าของปิดหน้าสาธารณะไว้" />;
     const p = pet.data;
     const img = resolveMediaUrl(p.profile_image_url);

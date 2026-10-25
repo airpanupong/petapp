@@ -7,6 +7,7 @@ import {listFollowingCases, unfollowLostCase} from '../api/features.api';
 import {getApiErrorMessage} from '../api/client';
 import {toast} from '../store/toastStore';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {InfiniteSentinel} from '../components/InfiniteSentinel';
 import {LostCard} from '../components/PostCards';
 import {EmptyState, PageTitle} from '../components/ui';
@@ -24,6 +25,7 @@ export default function FollowingPage() {
   const rows = cases.data?.pages.flat() ?? [];
   const {fetchNextPage} = cases;
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const showCases = useAssembleHold(cases.isLoading);
 
   const unfollow = useMutation({
     mutationFn: unfollowLostCase,
@@ -38,8 +40,8 @@ export default function FollowingPage() {
   return (
     <div className="page">
       <PageTitle title="เคสที่ติดตาม" subtitle="ประกาศน้องหายที่คุณกดติดตาม จะได้รับแจ้งเตือนเมื่อมีเบาะแสหรือเจอน้องแล้ว" />
-      {cases.isLoading ? (
-        <CatLoader label="กำลังโหลดเคสที่ติดตาม" />
+      {showCases.show ? (
+        <AssembleScope id={showCases.id}><CatLoader label="กำลังโหลดเคสที่ติดตาม" /></AssembleScope>
       ) : rows.length ? (
         <div className="grid grid-3 grid-4 home-grid">
           {rows.map(post => (

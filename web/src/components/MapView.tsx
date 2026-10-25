@@ -69,16 +69,52 @@ function Recenter({center, zoom, recenterKey}: {center: LatLng; zoom: number; re
 
   useEffect(() => {
     if (recenterKey === undefined) return;
-    if (lastKey.current === recenterKey) return;
-    lastKey.current = recenterKey;
-    const fromZoom = map.getZoom();
-    const delta = Math.abs(fromZoom - zoom);
-    const duration = Math.min(6.5, Math.max(1.4, 1.2 + delta * 0.42));
-    map.flyTo([center.latitude, center.longitude], zoom, {
-      animate: true,
-      duration,
-      easeLinearity: 0.12,
+    if (!Number.isFinite(center.latitude) || !Number.isFinite(center.longitude) || !Number.isFinite(zoom)) return;
+    let cancelled = false;
+    const go = () => {
+      if (cancelled || lastKey.current === recenterKey) return true;
+      const size = map.getSize();
+      // A page can mount while the route loader hides it (display: none).
+      // Leaflet then unprojects a 0×0 pane and throws Invalid LatLng (NaN, NaN),
+      // which unmounts the whole app.
+      if (!size || size.x < 2 || size.y < 2) return false;
+      try {
+        map.invalidateSize();
+        const fromZoom = map.getZoom();
+        if (!Number.isFinite(fromZoom)) {
+          map.setView([center.latitude, center.longitude], zoom, {animate: false});
+        } else {
+          const delta = Math.abs(fromZoom - zoom);
+          const duration = Math.min(6.5, Math.max(1.4, 1.2 + delta * 0.42));
+          map.stop();
+          map.flyTo([center.latitude, center.longitude], zoom, {
+            animate: true,
+            duration,
+            easeLinearity: 0.12,
+          });
+        }
+        lastKey.current = recenterKey;
+        return true;
+      } catch {
+        try {
+          map.setView([center.latitude, center.longitude], zoom, {animate: false});
+          lastKey.current = recenterKey;
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    };
+    if (go()) return () => { cancelled = true; };
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => {
+      if (go()) observer.disconnect();
     });
+    observer.observe(container);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [recenterKey, center.latitude, center.longitude, zoom, map]);
 
   return null;

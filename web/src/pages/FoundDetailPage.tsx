@@ -15,6 +15,7 @@ import {usePostView} from '../lib/postViews';
 import {MapView} from '../components/MapView';
 import {PostGallery} from '../components/MediaImage';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {ReportButton} from '../components/ReportButton';
 import {EmptyState, StatusBadge} from '../components/ui';
 import {AdminPrivateNote} from '../components/AdminPrivateNote';
@@ -39,7 +40,8 @@ export default function FoundDetailPage() {
     onError: e => toast.error(getApiErrorMessage(e)),
   });
 
-  if (post.isLoading) return <CatLoader label="กำลังเปิดประกาศ" />;
+  const opening = useAssembleHold(post.isLoading);
+  if (opening.show) return <AssembleScope id={opening.id}><CatLoader label="กำลังเปิดประกาศ" /></AssembleScope>;
   if (!post.data) return <EmptyState animal="cat" title="ไม่พบประกาศนี้" />;
   const p = post.data;
   const isReporter = me?.id === p.reporter_id;

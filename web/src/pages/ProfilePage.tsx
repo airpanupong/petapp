@@ -11,6 +11,7 @@ import {toast} from '../store/toastStore';
 import {confirmAction} from '../store/confirmStore';
 import {isStaff, roleLabel} from '../lib/roles';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {MyPostList} from '../components/MyPostList';
 import {Avatar, ContactUs, EmptyState, Optional, PageTitle, SectionTitle, VersionTag} from '../components/ui';
 import {NotificationSetting} from '../components/PermissionHints';
@@ -25,6 +26,7 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const fileRef = useRef<HTMLInputElement>(null);
   const posts = useQuery({queryKey: ['my-posts'], queryFn: getMyPosts});
+  const showPosts = useAssembleHold(posts.isLoading);
 
   useEffect(() => {
     setName(user?.display_name ?? '');
@@ -56,8 +58,8 @@ export default function ProfilePage() {
       <div className="split">
         <div style={{display: 'flex', flexDirection: 'column', gap: 16}}>
           <SectionTitle title="ประกาศของฉัน" />
-          {posts.isLoading ? (
-            <CatLoader label="กำลังรวบรวมประกาศ" />
+          {showPosts.show ? (
+            <AssembleScope id={showPosts.id}><CatLoader label="กำลังรวบรวมประกาศ" /></AssembleScope>
           ) : posts.data && posts.data.lost.length + posts.data.found.length > 0 ? (
             <MyPostList lost={posts.data.lost} found={posts.data.found} />
           ) : (

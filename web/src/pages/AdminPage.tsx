@@ -22,6 +22,7 @@ import {ConfirmOptions, confirmAction} from '../store/confirmStore';
 import {timeAgo} from '../lib/format';
 import {isStaff, isSuperAdmin, roleLabel} from '../lib/roles';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {AdminPostHistory} from '../components/AdminPostHistory';
 import {Avatar, PageTitle, SectionTitle, StatusBadge} from '../components/ui';
 
@@ -42,6 +43,7 @@ export default function AdminPage() {
   const deferredQuery = useDeferredValue(userQuery.trim());
 
   const metrics = useQuery({queryKey: ['admin-metrics'], queryFn: getAdminMetrics, enabled: isAdmin});
+  const showMetrics = useAssembleHold(metrics.isLoading);
   const reports = useQuery({queryKey: ['admin-reports'], queryFn: () => listAdminReports('open'), enabled: isAdmin});
   const ownership = useQuery({queryKey: ['admin-ownership'], queryFn: listAdminOwnership, enabled: isAdmin});
   const imageFlags = useQuery({queryKey: ['admin-image-flags'], queryFn: listImageFlags, enabled: isAdmin});
@@ -126,8 +128,8 @@ export default function AdminPage() {
         subtitle={isSuper ? 'Super Admin · บล็อกผู้ใช้ ซ่อนประกาศ และจัดการสิทธิ์' : 'ภาพรวมและงานที่รอดำเนินการ'}
         action={<Link to="/admin/intake" className="btn btn-primary">เพิ่มประกาศ</Link>}
       />
-      {metrics.isLoading ? (
-        <CatLoader label="กำลังรวบรวมสถิติ" />
+      {showMetrics.show ? (
+        <AssembleScope id={showMetrics.id}><CatLoader label="กำลังรวบรวมสถิติ" /></AssembleScope>
       ) : (
         <div className="grid grid-3" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))'}}>
           {stats.map(s => (

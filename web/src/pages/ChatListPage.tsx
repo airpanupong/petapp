@@ -5,6 +5,7 @@ import {useInfiniteQuery} from '@tanstack/react-query';
 import {listConversations} from '../api/chat.api';
 import {timeAgo} from '../lib/format';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {ChatContextTag} from '../components/ChatContext';
 import {InfiniteSentinel} from '../components/InfiniteSentinel';
 import {Avatar, EmptyState, PageTitle, StaffBadge} from '../components/ui';
@@ -21,12 +22,13 @@ export default function ChatListPage() {
   const rows = chats.data?.pages.flat() ?? [];
   const {fetchNextPage} = chats;
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const showChats = useAssembleHold(chats.isLoading);
 
   return (
     <div className="page">
       <PageTitle title="แชท" subtitle="คุยกับเจ้าของน้องหรือผู้พบ" />
-      {chats.isLoading ? (
-        <CatLoader label="กำลังเปิดกล่องข้อความ" />
+      {showChats.show ? (
+        <AssembleScope id={showChats.id}><CatLoader label="กำลังเปิดกล่องข้อความ" /></AssembleScope>
       ) : rows.length ? (
         <div className="list" style={{maxWidth: 760}}>
           {rows.map(c => {

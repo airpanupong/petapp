@@ -52,7 +52,7 @@ function App() {
     <SafeAreaProvider>
       <StatusBar
         barStyle="dark-content"
-        backgroundColor="#fff5f2"
+        backgroundColor="#ffffff"
         translucent={false}
       />
       <WebShell />

@@ -10,6 +10,7 @@ import {toast} from '../store/toastStore';
 import {confirmAction} from '../store/confirmStore';
 import {ImagePicker} from '../components/ImagePicker';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {AnimalOption} from '../components/PetMascot';
 import {PetAttributeField} from '../components/PetAttributeField';
 import {Optional, PageTitle} from '../components/ui';
@@ -118,7 +119,8 @@ export default function PetFormPage() {
     }
   };
 
-  if (isEdit && pet.isLoading) return <CatLoader label="กำลังโหลดข้อมูลน้อง" />;
+  const loadingPet = useAssembleHold(isEdit && pet.isLoading);
+  if (loadingPet.show) return <AssembleScope id={loadingPet.id}><CatLoader label="กำลังโหลดข้อมูลน้อง" /></AssembleScope>;
 
   return (
     <div className="page">

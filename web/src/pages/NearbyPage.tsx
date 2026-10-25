@@ -10,7 +10,7 @@ import {LOCAL_RETURN_ZOOM, WORLD_FLY_ZOOM, WORLD_VIEW_ZOOM} from '../lib/mapImag
 import {animalLabel, distanceLabel, timeAgo} from '../lib/format';
 import type {MapMarker} from '../components/MapView';
 import {NearbyMap} from '../components/NearbyMap';
-import {CatLoader} from '../components/CatLoader';
+import {CardSkeleton, MapSkeleton} from '../components/CardSkeleton';
 import {FoundCard, LostCard} from '../components/PostCards';
 import {AnimalOption} from '../components/PetMascot';
 import {EmptyState, PageTitle} from '../components/ui';
@@ -143,6 +143,8 @@ export default function NearbyPage() {
   const loadMorePets = useCallback(() => {
     if (systemFeed.hasNextPage && !systemFeed.isFetchingNextPage) void systemFeed.fetchNextPage();
   }, [systemFeed]);
+  const locating = coords == null;
+  const sniffing = coords != null && nearby.isLoading;
 
   const lost = useMemo(
     () =>
@@ -350,8 +352,11 @@ export default function NearbyPage() {
 
       {geo.status !== 'granted' && coords ? <LocationNotice status={geo.status} onRetry={geo.request} /> : null}
 
-      {!coords ? (
-        <CatLoader label="กำลังหาตำแหน่งของคุณ" />
+      {locating ? (
+        <div className="split">
+          <MapSkeleton />
+          <CardSkeleton count={4} layout="list" />
+        </div>
       ) : (
         <div className="split">
           <div className={`split-sticky ${view === 'list' ? 'hide-below-tablet' : ''}`}>
@@ -384,8 +389,8 @@ export default function NearbyPage() {
             </div>
           </div>
           <div className={`list ${view === 'map' ? 'hide-below-tablet' : ''}`}>
-            {nearby.isLoading ? (
-              <CatLoader label="กำลังดมกลิ่นหาน้อง" />
+            {sniffing ? (
+              <CardSkeleton count={4} layout="list" />
             ) : total === 0 ? (
               <EmptyState animal="dog" title="ยังไม่มีประกาศในรัศมีนี้" description="ลองขยายรัศมีหรือเปลี่ยนตัวกรองดูนะ" />
             ) : (

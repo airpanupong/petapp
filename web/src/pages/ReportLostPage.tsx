@@ -17,6 +17,7 @@ import {LocationPicker} from '../components/LocationPicker';
 import {MultiImagePicker} from '../components/MultiImagePicker';
 import {downscaleImage} from '../lib/image';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {AnimalOption, PetMascot} from '../components/PetMascot';
 import {PetAttributeField} from '../components/PetAttributeField';
 import {EmptyState, Optional, PageTitle} from '../components/ui';
@@ -43,7 +44,8 @@ export default function ReportLostPage() {
 function EditLostPost({id}: {id: string}) {
   const me = useAuthStore(s => s.user);
   const post = useQuery({queryKey: ['lost-post', id], queryFn: () => getLostPost(id)});
-  if (post.isLoading) return <CatLoader label="กำลังเปิดประกาศ" />;
+  const opening = useAssembleHold(post.isLoading);
+  if (opening.show) return <AssembleScope id={opening.id}><CatLoader label="กำลังเปิดประกาศ" /></AssembleScope>;
   if (!post.data) return <EmptyState animal="cat" title="ไม่พบประกาศนี้" />;
   if (post.data.owner_id !== me?.id) return <EmptyState animal="cat" title="แก้ไขได้เฉพาะเจ้าของประกาศ" />;
   if (post.data.status !== 'active') return <EmptyState animal="cat" title="ประกาศนี้ปิดแล้ว แก้ไขไม่ได้" />;
@@ -164,7 +166,8 @@ function LostPostForm({editing}: {editing?: LostPost}) {
     }
   };
 
-  if (!editing && pets.isLoading) return <CatLoader label="กำลังโหลดรายชื่อน้อง" />;
+  const loadingPets = useAssembleHold(!editing && pets.isLoading);
+  if (loadingPets.show) return <AssembleScope id={loadingPets.id}><CatLoader label="กำลังโหลดรายชื่อน้อง" /></AssembleScope>;
 
   return (
     <div className="page">

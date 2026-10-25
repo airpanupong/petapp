@@ -22,6 +22,7 @@ import {LocationPicker} from '../components/LocationPicker';
 import {MultiImagePicker, PhotoStrip} from '../components/MultiImagePicker';
 import {downscaleImage} from '../lib/image';
 import {CatLoader} from '../components/CatLoader';
+import {AssembleScope, useAssembleHold} from '../lib/assembleHold';
 import {ReportButton} from '../components/ReportButton';
 import {LostCheckinPrompt, needsCheckin} from '../components/LostCheckinPrompt';
 import {EmptyState, Modal, StatusBadge} from '../components/ui';
@@ -68,7 +69,8 @@ export default function LostDetailPage() {
     onError: e => toast.error(getApiErrorMessage(e)),
   });
 
-  if (post.isLoading) return <CatLoader label="กำลังเปิดประกาศ" />;
+  const opening = useAssembleHold(post.isLoading);
+  if (opening.show) return <AssembleScope id={opening.id}><CatLoader label="กำลังเปิดประกาศ" /></AssembleScope>;
   if (!post.data) return <EmptyState animal="cat" title="ไม่พบประกาศนี้" />;
   const p = post.data;
   const isOwner = me?.id === p.owner_id;
