@@ -1,4 +1,4 @@
-import {ReactNode, Suspense, useEffect} from 'react';
+import {ReactNode, Suspense, useEffect, useLayoutEffect} from 'react';
 import {Navigate, Route, Routes, useLocation} from 'react-router-dom';
 
 import {useAuthStore} from './store/authStore';
@@ -8,6 +8,7 @@ import {LoginPromptModal, LoginRequiredPage} from './components/LoginGate';
 import {ConfirmHost, ToastHost} from './components/ui';
 import {lazyPage} from './lib/lazyPage';
 import {syncPushSubscription} from './lib/push';
+import {useSyncKeyboardInset} from './lib/visualViewport';
 
 const AuthPage = lazyPage(() => import('./pages/AuthPage'));
 const HomePage = lazyPage(() => import('./pages/HomePage'));
@@ -23,8 +24,11 @@ const FoundDetailPage = lazyPage(() => import('./pages/FoundDetailPage'));
 const ChatListPage = lazyPage(() => import('./pages/ChatListPage'));
 const ChatThreadPage = lazyPage(() => import('./pages/ChatThreadPage'));
 const NotificationsPage = lazyPage(() => import('./pages/NotificationsPage'));
+const FollowingPage = lazyPage(() => import('./pages/FollowingPage'));
+const PrivacyPage = lazyPage(() => import('./pages/PrivacyPage'));
 const ProfilePage = lazyPage(() => import('./pages/ProfilePage'));
 const AdminPage = lazyPage(() => import('./pages/AdminPage'));
+const AdminIntakePage = lazyPage(() => import('./pages/AdminIntakePage'));
 const PublicPetPage = lazyPage(() => import('./pages/PublicPetPage'));
 const NotFoundPage = lazyPage(() => import('./pages/NotFoundPage'));
 const InstallPage = lazyPage(() => import('./pages/InstallPage'));
@@ -44,7 +48,18 @@ function GuestOnly({children}: {children: ReactNode}) {
   return <>{children}</>;
 }
 
-const pageFallback = <CatLoader label="น้องแมวกำลังพาไป" />;
+function ScrollToTop() {
+  const {pathname} = useLocation();
+  useLayoutEffect(() => {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  }, []);
+  useLayoutEffect(() => {
+    window.scrollTo({top: 0, left: 0, behavior: 'instant'});
+  }, [pathname]);
+  return null;
+}
+
+const pageFallback = <CatLoader label="กำลังพาน้องไป" />;
 
 function Page({children, auth}: {children: ReactNode; auth?: boolean}) {
   const page = <Suspense fallback={pageFallback}>{children}</Suspense>;
@@ -54,6 +69,7 @@ function Page({children, auth}: {children: ReactNode; auth?: boolean}) {
 export function App() {
   const status = useAuthStore(s => s.status);
   const bootstrap = useAuthStore(s => s.bootstrap);
+  useSyncKeyboardInset();
 
   useEffect(() => {
     void bootstrap();
@@ -69,10 +85,11 @@ export function App() {
 
   return (
     <>
+      <ScrollToTop />
       <ToastHost />
       <ConfirmHost />
       <LoginPromptModal />
-      <Suspense fallback={<CatLoader fullscreen size="lg" label="น้องแมวกำลังพาไป" />}>
+      <Suspense fallback={<CatLoader fullscreen size="lg" label="กำลังพาน้องไป" />}>
         <Routes>
           <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
           <Route path="/register" element={<GuestOnly><AuthPage mode="register" /></GuestOnly>} />
@@ -84,9 +101,9 @@ export function App() {
             <Route path="nearby" element={<Page><NearbyPage /></Page>} />
             <Route path="lost/:id" element={<Page><LostDetailPage /></Page>} />
             <Route path="found/:id" element={<Page><FoundDetailPage /></Page>} />
-            <Route path="report" element={<Page auth><ReportHubPage /></Page>} />
+            <Route path="report" element={<Page><ReportHubPage /></Page>} />
             <Route path="report/lost" element={<Page auth><ReportLostPage /></Page>} />
-            <Route path="report/found" element={<Page auth><ReportFoundPage /></Page>} />
+            <Route path="report/found" element={<Page><ReportFoundPage /></Page>} />
             <Route path="lost/:id/edit" element={<Page auth><ReportLostPage /></Page>} />
             <Route path="found/:id/edit" element={<Page auth><ReportFoundPage /></Page>} />
             <Route path="pets" element={<Page auth><PetsPage /></Page>} />
@@ -96,9 +113,12 @@ export function App() {
             <Route path="chat" element={<Page auth><ChatListPage /></Page>} />
             <Route path="chat/:id" element={<Page auth><ChatThreadPage /></Page>} />
             <Route path="notifications" element={<Page auth><NotificationsPage /></Page>} />
+            <Route path="following" element={<Page auth><FollowingPage /></Page>} />
             <Route path="profile" element={<Page auth><ProfilePage /></Page>} />
             <Route path="install" element={<Page><InstallPage /></Page>} />
+            <Route path="privacy" element={<Page><PrivacyPage /></Page>} />
             <Route path="admin" element={<Page auth><AdminPage /></Page>} />
+            <Route path="admin/intake" element={<Page auth><AdminIntakePage /></Page>} />
             <Route path="*" element={<Page><NotFoundPage /></Page>} />
           </Route>
         </Routes>

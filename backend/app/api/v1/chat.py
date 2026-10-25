@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import time
 from collections import defaultdict
@@ -14,6 +16,7 @@ from app.core.database import SessionLocal, get_db
 from app.core.exceptions import AppError
 from app.core.pagination import is_older, make_cursor, older_than, parse_cursor
 from app.core.responses import success
+from app.core.roles import ADMIN, SUPER_ADMIN
 from app.core.security import decode_token
 from app.models.community import Conversation, ConversationMember, Message
 from app.models.features import AppNotification
@@ -24,18 +27,21 @@ from app.schemas.community import ConversationCreate, ConversationRead, MessageC
 from app.services.chat_service import CONTEXT_MESSAGE, find_or_create_conversation
 from app.services.notification_service import add_notification
 from app.services.push_service import send_push_to_user
+from app.services.realtime import inbox
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
 CHAT_NOTIFICATION = "chat_message"
-# The thread page polls every 5s; someone who polled this recently is looking at it and needs no alert.
+# Someone who just loaded the thread, or has it open on the inbox socket, is looking at it and needs no alert.
 VIEWING_WINDOW_SECONDS = 15
 _last_viewed: dict[tuple[str, str], float] = {}
 
 
 def _is_viewing(conversation_id: str, user_id: str) -> bool:
+    if inbox.is_viewing(user_id, conversation_id):
+        return True
     seen = _last_viewed.get((conversation_id, user_id))
     return seen is not None and time.monotonic() - seen < VIEWING_WINDOW_SECONDS
 
@@ -43,7 +49,9 @@ def _is_viewing(conversation_id: str, user_id: str) -> bool:
 def notify_new_message(db: Session, conversation_id: str, sender: User, message: Message) -> None:
     preview = (message.content or "").strip()
     body = (preview[:117] + "...") if len(preview) > 120 else preview or "ส่งรูปภาพ"
-    title = f"{sender.display_name} ส่งข้อความถึงคุณ"
+    role = {ADMIN: "Admin", SUPER_ADMIN: "Super Admin"}.get(sender.role)
+    name = f"{sender.display_name} ({role})" if role else sender.display_name
+    title = f"{name} ส่งข้อความถึงคุณ"
     recipients = db.scalars(
         select(ConversationMember.user_id).where(
             ConversationMember.conversation_id == conversation_id,
@@ -169,6 +177,7 @@ def conversation_payload(db: Session, conversation: Conversation, current_user_i
                     "id": user.id,
                     "display_name": user.display_name,
                     "avatar_url": user.avatar_url,
+                    "role": user.role,
                 }
             )
     last = db.scalar(
@@ -262,6 +271,7 @@ def list_messages(
 ):
     ensure_member(db, conversation_id, current_user.id)
     # Opening the thread marks the other side's messages as read (drives the sender's double check).
+    read_at = datetime.now(timezone.utc)
     marked = db.execute(
         update(Message)
         .where(
@@ -269,7 +279,7 @@ def list_messages(
             Message.sender_id != current_user.id,
             Message.read_at.is_(None),
         )
-        .values(read_at=datetime.now(timezone.utc))
+        .values(read_at=read_at)
     )
     _last_viewed[(conversation_id, current_user.id)] = time.monotonic()
     cleared = db.execute(
@@ -284,6 +294,8 @@ def list_messages(
     )
     if marked.rowcount or cleared.rowcount:
         db.commit()
+        if marked.rowcount:
+            publish_read(db, conversation_id, current_user.id, read_at)
     stmt = select(Message).where(Message.conversation_id == conversation_id)
     cursor = older_than(db, Message, Message.created_at, before)
     if cursor is not None:
@@ -323,7 +335,9 @@ def send_message(
     notify_new_message(db, conversation_id, current_user, row)
     db.commit()
     db.refresh(row)
-    return success(MessageRead.model_validate(row).model_dump(mode="json"))
+    saved = MessageRead.model_validate(row).model_dump(mode="json")
+    publish_message(db, conversation_id, saved)
+    return success(saved)
 
 
 class ConnectionManager:
@@ -389,6 +403,109 @@ async def chat_ws(websocket: WebSocket, conversation_id: str, token: str):
                 db.commit()
                 db.refresh(row)
                 saved = MessageRead.model_validate(row).model_dump(mode="json")
+                publish_message(db, conversation_id, saved)
             await manager.broadcast(conversation_id, {"type": "message", "data": saved})
     except WebSocketDisconnect:
         manager.disconnect(conversation_id, websocket)
+
+
+def _member_ids(db: Session, conversation_id: str) -> list[str]:
+    return list(
+        db.scalars(select(ConversationMember.user_id).where(ConversationMember.conversation_id == conversation_id)).all()
+    )
+
+
+def _chat_unread(db: Session, user_id: str) -> int:
+    return db.scalar(select(func.count(Message.id)).where(*_unread_filter(user_id))) or 0
+
+
+def _conversation_unread(db: Session, conversation_id: str, user_id: str) -> int:
+    return db.scalar(
+        select(func.count(Message.id)).where(
+            Message.conversation_id == conversation_id,
+            Message.sender_id != user_id,
+            Message.read_at.is_(None),
+        )
+    ) or 0
+
+
+def publish_message(db: Session, conversation_id: str, message: dict) -> None:
+    for user_id in _member_ids(db, conversation_id):
+        inbox.push(
+            user_id,
+            {
+                "type": "message",
+                "conversation_id": conversation_id,
+                "message": message,
+                "unread_count": _chat_unread(db, user_id),
+                "conversation_unread": _conversation_unread(db, conversation_id, user_id),
+            },
+        )
+
+
+def publish_read(db: Session, conversation_id: str, reader_id: str, read_at: datetime) -> None:
+    stamp = read_at.astimezone(timezone.utc).isoformat()
+    for user_id in _member_ids(db, conversation_id):
+        if user_id == reader_id:
+            inbox.push(
+                user_id,
+                {
+                    "type": "unread",
+                    "unread_count": _chat_unread(db, user_id),
+                    "conversation_id": conversation_id,
+                    "conversation_unread": 0,
+                },
+            )
+            continue
+        inbox.push(
+            user_id,
+            {
+                "type": "read",
+                "conversation_id": conversation_id,
+                "reader_id": reader_id,
+                "read_at": stamp,
+            },
+        )
+
+
+@router.websocket("/inbox")
+async def inbox_ws(websocket: WebSocket, token: str):
+    try:
+        payload = decode_token(token)
+        user_id = str(payload["sub"]) if payload.get("type") == "access" and payload.get("sub") else None
+    except Exception:
+        user_id = None
+    if user_id is None:
+        # Browsers only see close codes after the handshake; 4401 tells the client to refresh its token.
+        await websocket.accept()
+        await websocket.close(code=4401)
+        return
+
+    inbox.bind(asyncio.get_running_loop())
+    await inbox.connect(user_id, websocket)
+    try:
+        with SessionLocal() as db:
+            count = _chat_unread(db, user_id)
+        await websocket.send_json({"type": "unread", "unread_count": count})
+        while True:
+            raw = await websocket.receive_text()
+            if raw == "ping":
+                await websocket.send_text("pong")
+                continue
+            try:
+                body = json.loads(raw)
+            except ValueError:
+                continue
+            if isinstance(body, dict) and body.get("type") == "view":
+                conversation_id = body.get("conversation_id") or None
+                if conversation_id:
+                    with SessionLocal() as db:
+                        try:
+                            ensure_member(db, conversation_id, user_id)
+                        except AppError:
+                            conversation_id = None
+                inbox.set_viewing(websocket, conversation_id)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        inbox.disconnect(user_id, websocket)

@@ -1,0 +1,8 @@
+{
+  "name": "petapp-infra",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "railway": "^3.12.0"
+  }
+}

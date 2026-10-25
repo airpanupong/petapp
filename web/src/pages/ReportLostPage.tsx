@@ -1,9 +1,9 @@
-import {FormEvent, useEffect, useState} from 'react';
-import {useNavigate, useParams, useSearchParams, Link} from 'react-router-dom';
+import {FormEvent, useCallback, useEffect, useRef, useState} from 'react';
+import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {Save, Siren} from 'lucide-react';
 
-import {listPets} from '../api/pets.api';
+import {createPet, listPets} from '../api/pets.api';
 import {createLostPost, getLostPost, updateLostPost} from '../api/community.api';
 import {uploadImage, resolveMediaUrl} from '../api/uploads.api';
 import {getApiErrorMessage} from '../api/client';
@@ -17,10 +17,22 @@ import {LocationPicker} from '../components/LocationPicker';
 import {MultiImagePicker} from '../components/MultiImagePicker';
 import {downscaleImage} from '../lib/image';
 import {CatLoader} from '../components/CatLoader';
-import {PetMascot} from '../components/PetMascot';
-import {EmptyState, PageTitle} from '../components/ui';
+import {AnimalOption, PetMascot} from '../components/PetMascot';
+import {PetAttributeField} from '../components/PetAttributeField';
+import {EmptyState, Optional, PageTitle} from '../components/ui';
 
 const RADII = [1, 3, 5, 10, 20];
+
+type NewPet = {
+  name: string;
+  animal_type: 'dog' | 'cat' | 'other';
+  breed: string;
+  color: string;
+  gender: string;
+  distinctive_marks: string;
+};
+
+const NEW_PET: NewPet = {name: '', animal_type: 'dog', breed: '', color: '', gender: '', distinctive_marks: ''};
 
 export default function ReportLostPage() {
   const {id} = useParams();
@@ -58,8 +70,17 @@ function LostPostForm({editing}: {editing?: LostPost}) {
   const [keptPhotos, setKeptPhotos] = useState<string[]>(editing?.image_urls ?? (editing?.image_url ? [editing.image_url] : []));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [newPet, setNewPet] = useState<NewPet>(NEW_PET);
+  // Keeps a retry after a failed post from registering the same pet twice.
+  const createdPetId = useRef<string | null>(null);
 
   const available = pets.data?.filter(p => p.status !== 'lost') ?? [];
+  const needsPet = !editing && pets.isSuccess && !available.length;
+  const setPetField = <K extends keyof NewPet>(key: K, value: NewPet[K]) => setNewPet(f => ({...f, [key]: value}));
+  const setNewBreed = useCallback((v: string) => setPetField('breed', v), []);
+  const setNewColor = useCallback((v: string) => setPetField('color', v), []);
+  const chooseAnimal = (animal: NewPet['animal_type']) =>
+    setNewPet(f => (f.animal_type === animal ? f : {...f, animal_type: animal, breed: '', color: ''}));
   useEffect(() => {
     if (!editing && !petId && available[0]) setPetId(available[0].id);
   }, [available, petId, editing]);
@@ -68,8 +89,16 @@ function LostPostForm({editing}: {editing?: LostPost}) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!petId || !position) {
-      setError('กรุณาเลือกน้องและปักหมุดตำแหน่ง');
+    if (needsPet && !newPet.name.trim()) {
+      setError('กรุณาใส่ชื่อน้อง');
+      return;
+    }
+    if (!needsPet && !petId) {
+      setError('กรุณาเลือกน้องที่หาย');
+      return;
+    }
+    if (!position) {
+      setError('กรุณาปักหมุดตำแหน่งที่น้องหาย');
       return;
     }
     if (editing) {
@@ -85,6 +114,21 @@ function LostPostForm({editing}: {editing?: LostPost}) {
     setError(null);
     try {
       const uploaded = await Promise.all(photos.map(async f => uploadImage(await downscaleImage(f))));
+      let lostPetId = petId;
+      if (needsPet) {
+        createdPetId.current ??= (
+          await createPet({
+            name: newPet.name.trim(),
+            animal_type: newPet.animal_type,
+            breed: newPet.breed.trim() || undefined,
+            color: newPet.color.trim() || undefined,
+            gender: newPet.gender || undefined,
+            distinctive_marks: newPet.distinctive_marks.trim() || undefined,
+            profile_image_url: uploaded[0],
+          })
+        ).id;
+        lostPetId = createdPetId.current;
+      }
       const fields = {
         lost_at: fromLocalInput(lostAt),
         latitude: position.latitude,
@@ -102,7 +146,7 @@ function LostPostForm({editing}: {editing?: LostPost}) {
           })
         : await createLostPost({
             ...fields,
-            pet_id: petId,
+            pet_id: lostPetId,
             location_text: locationText || undefined,
             description: description || undefined,
             reward_text: reward ? rewardText : undefined,
@@ -122,20 +166,6 @@ function LostPostForm({editing}: {editing?: LostPost}) {
 
   if (!editing && pets.isLoading) return <CatLoader label="กำลังโหลดรายชื่อน้อง" />;
 
-  if (!editing && !available.length) {
-    return (
-      <div className="page">
-        <PageTitle title="แจ้งน้องหาย" />
-        <EmptyState
-          animal="dog"
-          title="ยังไม่มีน้องที่ลงทะเบียน"
-          description="ลงทะเบียนน้องก่อน แล้วจะแจ้งหายได้ในคลิกเดียว"
-          action={<Link className="btn btn-primary" to="/pets/new">เพิ่มน้อง</Link>}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="page">
       <PageTitle
@@ -144,7 +174,77 @@ function LostPostForm({editing}: {editing?: LostPost}) {
       />
       <form className="split" onSubmit={submit}>
         <div className="card form">
-          {editing ? null : (
+          {needsPet ? (
+            <>
+              <div className="new-pet-intro">
+                <PetMascot type={newPet.animal_type} size={44} />
+                <div>
+                  <b>บอกข้อมูลน้องหน่อย</b>
+                  <p className="muted small">
+                    {pets.data?.length ? 'น้องทุกตัวของคุณมีประกาศตามหาอยู่แล้ว ' : 'ยังไม่มีน้องในบัญชี '}
+                    กรอกข้อมูลน้องตรงนี้ได้เลย เราจะบันทึกไว้ใน "น้องของฉัน" ให้ด้วย
+                  </p>
+                </div>
+              </div>
+              <div className="form-row">
+                <label className="field">
+                  <span>ชื่อน้อง</span>
+                  <input className="input" value={newPet.name} onChange={e => setPetField('name', e.target.value)} maxLength={120} required />
+                </label>
+                <div className="field">
+                  <span>ชนิด</span>
+                  <div className="chips">
+                    {(['dog', 'cat', 'other'] as const).map(a => (
+                      <button type="button" key={a} className={`chip ${newPet.animal_type === a ? 'active' : ''}`} onClick={() => chooseAnimal(a)}>
+                        <AnimalOption type={a} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="form-row">
+                <PetAttributeField
+                  key={`${newPet.animal_type}-breed`}
+                  animal={newPet.animal_type}
+                  attribute="breed"
+                  label="สายพันธุ์"
+                  optional
+                  value={newPet.breed}
+                  onChange={setNewBreed}
+                  freePlaceholder="เช่น กระต่ายฮอลแลนด์ลอป"
+                />
+                <PetAttributeField
+                  key={`${newPet.animal_type}-color`}
+                  animal={newPet.animal_type}
+                  attribute="color"
+                  label="สี"
+                  optional
+                  value={newPet.color}
+                  onChange={setNewColor}
+                />
+              </div>
+              <div className="form-row">
+                <label className="field">
+                  <span>เพศ <Optional /></span>
+                  <select className="select" value={newPet.gender} onChange={e => setPetField('gender', e.target.value)}>
+                    <option value="">ไม่ระบุ</option>
+                    <option value="male">ผู้</option>
+                    <option value="female">เมีย</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>ตำหนิ / จุดสังเกต <Optional /></span>
+                  <input
+                    className="input"
+                    value={newPet.distinctive_marks}
+                    onChange={e => setPetField('distinctive_marks', e.target.value)}
+                    placeholder="เช่น หูซ้ายพับ หางกุด"
+                  />
+                </label>
+              </div>
+              <hr className="form-divider" />
+            </>
+          ) : editing ? null : (
             <div className="field">
               <span>น้องตัวไหนหาย?</span>
               <div className="chips">
@@ -181,10 +281,10 @@ function LostPostForm({editing}: {editing?: LostPost}) {
             </label>
           </div>
           <label className="field">
-            <span>รายละเอียด</span>
+            <span>รายละเอียด <Optional /></span>
             <textarea
               className="textarea"
-              placeholder="ใส่ปลอกคอสีแดง ขี้กลัวคนแปลกหน้า ชอบขนม..."
+              placeholder="ที่อยู่หรือสถานที่ที่น้องหาย หรือคุณสมบัติที่น้องมี เช่น ปลอกคอสีแดง ขี้กลัวคนแปลกหน้า ชอบขนม..."
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
@@ -204,7 +304,9 @@ function LostPostForm({editing}: {editing?: LostPost}) {
             coverLabel="รูปหน้าปก"
             large
           />
-          <p className="muted small" style={{marginTop: -6}}>ถ้าไม่ใส่รูป จะใช้รูปโปรไฟล์ของน้องแทน</p>
+          <p className="muted small" style={{marginTop: -6}}>
+            {needsPet ? 'รูปแรกจะใช้เป็นรูปโปรไฟล์ของน้องด้วย' : 'ถ้าไม่ใส่รูป จะใช้รูปโปรไฟล์ของน้องแทน'}
+          </p>
         </div>
 
         <div className="card form split-sticky">

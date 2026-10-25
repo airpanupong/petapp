@@ -4,6 +4,7 @@ import {Link, useLocation} from 'react-router-dom';
 import {useAuthStore} from '../store/authStore';
 import {getApiErrorMessage} from '../api/client';
 import {PetMascot} from '../components/PetMascot';
+import {PetScene} from '../components/PetScene';
 import {BrandMark, ContactUs, PasswordInput, VersionTag} from '../components/ui';
 
 // const DEMO = ['demo@example.com', 'finder@example.com', 'admin@example.com'];
@@ -15,6 +16,8 @@ export default function AuthPage({mode}: {mode: 'login' | 'register'}) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [acceptDataAccess, setAcceptDataAccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const isLogin = mode === 'login';
@@ -25,7 +28,7 @@ export default function AuthPage({mode}: {mode: 'login' | 'register'}) {
     setBusy(true);
     try {
       if (isLogin) await login(email.trim(), password);
-      else await register(name.trim(), email.trim(), password);
+      else await register(name.trim(), email.trim(), password, {privacy: acceptPrivacy, dataAccess: acceptDataAccess});
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -51,8 +54,7 @@ export default function AuthPage({mode}: {mode: 'login' | 'register'}) {
             </p>
           </div>
           <div className="pets">
-            <PetMascot type="dog" size={92} />
-            <PetMascot type="cat" size={92} />
+            <PetScene variant="auth" />
             <PetMascot type="other" size={92} />
           </div>
         </div>
@@ -60,8 +62,7 @@ export default function AuthPage({mode}: {mode: 'login' | 'register'}) {
         <form className="auth-form" onSubmit={submit}>
           <div className="auth-compact-brand">
             <div className="pets">
-              <PetMascot type="dog" size={68} />
-              <PetMascot type="cat" size={68} />
+              <PetScene variant="compact" />
               <PetMascot type="other" size={68} />
             </div>
             <b>Pet haii</b>
@@ -135,9 +136,30 @@ export default function AuthPage({mode}: {mode: 'login' | 'register'}) {
             {!isLogin ? <small className="field-hint">อย่างน้อย 8 ตัวอักษร</small> : null}
           </label>
 
+          {!isLogin ? (
+            <div className="consent-box">
+              <label className="check consent-check">
+                <input type="checkbox" checked={acceptPrivacy} onChange={e => setAcceptPrivacy(e.target.checked)} required />
+                <span>
+                  ฉันได้อ่านและยอมรับ{' '}
+                  <Link to="/privacy" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว (PDPA)</Link>{' '}
+                  และยินยอมให้ Pet haii เก็บและใช้ข้อมูลส่วนบุคคลของฉันตามที่ระบุไว้
+                </span>
+              </label>
+              <label className="check consent-check">
+                <input type="checkbox" checked={acceptDataAccess} onChange={e => setAcceptDataAccess(e.target.checked)} required />
+                <span>
+                  ยินยอมให้แอปขอ{' '}
+                  <Link to="/privacy#data-access" target="_blank" rel="noopener">สิทธิ์เข้าถึงข้อมูล</Link>{' '}
+                  ตำแหน่ง รูปภาพ และการแจ้งเตือน เพื่อใช้ช่วยตามหาน้องและแจ้งเตือนเคสใกล้บ้าน
+                </span>
+              </label>
+            </div>
+          ) : null}
+
           {error ? <p className="error-text">{error}</p> : null}
 
-          <button className="btn btn-primary btn-block" disabled={busy}>
+          <button className="btn btn-primary btn-block" disabled={busy || (!isLogin && !(acceptPrivacy && acceptDataAccess))}>
             {busy ? 'รอสักครู่...' : isLogin ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
           </button>
 

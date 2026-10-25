@@ -11,7 +11,8 @@ import {useAuthStore} from '../store/authStore';
 import {FoundPost, LostPost} from '../types/api';
 import {CatLoader} from '../components/CatLoader';
 import {FoundCard, LostCard} from '../components/PostCards';
-import {AnimalOption, PetMascot} from '../components/PetMascot';
+import {AnimalOption} from '../components/PetMascot';
+import {PetScene} from '../components/PetScene';
 import {EmptyState} from '../components/ui';
 import {AppSetupCard} from '../components/PermissionHints';
 import {LostCheckinPrompt, needsCheckin} from '../components/LostCheckinPrompt';
@@ -60,9 +61,9 @@ export default function HomePage() {
   // Own posts come from "my posts" and stay on top; the feed leaves them out.
   const mine = useMemo<Item[]>(() => {
     const list: Item[] = [];
-    if (feed !== 'found') myLost.forEach(post => list.push({kind: 'lost', at: post.lost_at, mine: true, post}));
+    if (feed !== 'found') myLost.forEach(post => list.push({kind: 'lost', at: post.created_at, mine: true, post}));
     if (feed !== 'lost')
-      (myPosts.data?.found ?? []).filter(p => p.status === 'active').forEach(post => list.push({kind: 'found', at: post.found_at, mine: true, post}));
+      (myPosts.data?.found ?? []).filter(p => p.status === 'active').forEach(post => list.push({kind: 'found', at: post.created_at, mine: true, post}));
     return list
       .filter(i => {
         const [type, itemBreed, itemColor] =
@@ -84,7 +85,7 @@ export default function HomePage() {
         const key = `${i.kind}-${i.post.id}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        list.push(i.kind === 'lost' ? {kind: 'lost', at: i.post.lost_at, mine: false, post: i.post} : {kind: 'found', at: i.post.found_at, mine: false, post: i.post});
+        list.push(i.kind === 'lost' ? {kind: 'lost', at: i.post.created_at, mine: false, post: i.post} : {kind: 'found', at: i.post.created_at, mine: false, post: i.post});
       }
     }
     return list;
@@ -114,10 +115,7 @@ export default function HomePage() {
             </button>
           </div>
         </div>
-        <div className="home-head-pets" aria-hidden>
-          <PetMascot type="dog" size={96} />
-          <PetMascot type="cat" size={96} />
-        </div>
+        <PetScene />
       </section>
 
       {checkins.map(p => (

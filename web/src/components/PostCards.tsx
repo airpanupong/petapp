@@ -1,9 +1,9 @@
 import {useNavigate} from 'react-router-dom';
-import {Clock, MapPin, Gift, Siren, HeartHandshake, IdCard, Pencil, UserRound, XCircle} from 'lucide-react';
+import {CalendarDays, Clock, Eye, MapPin, Gift, Siren, HeartHandshake, IdCard, Pencil, UserRound, XCircle} from 'lucide-react';
 
 import {FoundPost, LostPost, Pet} from '../types/api';
 import {resolveMediaUrl} from '../api/uploads.api';
-import {animalLabel, colorLabel, colorPhrase, distanceLabel, statusLabel, statusTone, timeAgo} from '../lib/format';
+import {animalLabel, colorLabel, colorPhrase, distanceLabel, formatDate, statusLabel, statusTone, timeAgo, viewsLabel} from '../lib/format';
 import {PostKind, usePostAction} from '../lib/postActions';
 import {StatusBadge} from './ui';
 import {MediaImage} from './MediaImage';
@@ -56,13 +56,20 @@ export function LostCard({post, mine}: {post: LostPost; mine?: boolean}) {
             <MapPin size={13} /> {post.location_text || 'ไม่ระบุตำแหน่ง'}
           </span>
           <span>
-            <Clock size={13} /> {timeAgo(post.lost_at)}
+            <Clock size={13} /> หาย {timeAgo(post.lost_at)}
+          </span>
+          <span>
+            <CalendarDays size={13} /> โพสต์ {formatDate(post.created_at)}
+          </span>
+          <span>
+            <Eye size={13} /> {viewsLabel(post.view_count)}
           </span>
           {post.reward_enabled ? (
             <span style={{color: 'var(--butter-strong)'}}>
               <Gift size={13} /> มีรางวัล
             </span>
           ) : null}
+          {post.created_by_admin ? <span className="badge badge-admin">เพิ่มโดยแอดมิน</span> : null}
         </div>
         {mine && post.status === 'active' ? <MineBar kind="lost" postId={post.id} name={post.pet?.name ?? post.title} /> : null}
       </div>
@@ -78,7 +85,11 @@ export function FoundCard({post, mine}: {post: FoundPost; mine?: boolean}) {
     <article className={`card post-card ${post.status !== 'active' ? 'inactive' : ''}`} onClick={() => navigate(`/found/${post.id}`)}>
       <div className="post-media" style={{background: 'linear-gradient(135deg, var(--mint-soft), var(--sky-soft))'}}>
         <MediaImage src={img} alt={`พบ${animalLabel(post.animal_type)}`} type={post.animal_type} lazy />
-        <span className="badge badge-found"><HeartHandshake size={13} /> มีคนพบ</span>
+        {post.is_guest ? (
+          <span className="badge badge-found"><Eye size={13} /> เบาะแส</span>
+        ) : (
+          <span className="badge badge-found"><HeartHandshake size={13} /> มีคนพบ</span>
+        )}
         <ClosedRibbon status={post.status} found />
         {dist ? <span className="distance glass-strong">{dist}</span> : null}
       </div>
@@ -93,8 +104,15 @@ export function FoundCard({post, mine}: {post: FoundPost; mine?: boolean}) {
             <MapPin size={13} /> {post.location_text || 'ไม่ระบุตำแหน่ง'}
           </span>
           <span>
-            <Clock size={13} /> {timeAgo(post.found_at)}
+            <Clock size={13} /> พบ {timeAgo(post.found_at)}
           </span>
+          <span>
+            <CalendarDays size={13} /> โพสต์ {formatDate(post.created_at)}
+          </span>
+          <span>
+            <Eye size={13} /> {viewsLabel(post.view_count)}
+          </span>
+          {post.created_by_admin ? <span className="badge badge-admin">เพิ่มโดยแอดมิน</span> : null}
         </div>
         {mine && post.status === 'active' ? <MineBar kind="found" postId={post.id} name={`พบ${animalLabel(post.animal_type)}`} /> : null}
       </div>

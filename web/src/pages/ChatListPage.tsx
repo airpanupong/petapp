@@ -7,7 +7,7 @@ import {timeAgo} from '../lib/format';
 import {CatLoader} from '../components/CatLoader';
 import {ChatContextTag} from '../components/ChatContext';
 import {InfiniteSentinel} from '../components/InfiniteSentinel';
-import {Avatar, EmptyState, PageTitle} from '../components/ui';
+import {Avatar, EmptyState, PageTitle, StaffBadge} from '../components/ui';
 
 const PAGE_SIZE = 30;
 
@@ -17,7 +17,6 @@ export default function ChatListPage() {
     queryFn: ({pageParam}) => listConversations({before: pageParam, limit: PAGE_SIZE}),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: last => (last.length === PAGE_SIZE ? last[last.length - 1].cursor : undefined),
-    refetchInterval: 15_000,
   });
   const rows = chats.data?.pages.flat() ?? [];
   const {fetchNextPage} = chats;
@@ -39,6 +38,7 @@ export default function ChatListPage() {
                 <div className="grow" style={{minWidth: 0}}>
                   <div className="chat-list-name">
                     <b>{other?.display_name ?? 'ผู้ใช้'}</b>
+                    <StaffBadge role={other?.role} />
                     <ChatContextTag context={c.context} />
                   </div>
                   <p>{c.last_message?.content || (c.last_message?.image_url ? 'ส่งรูปภาพ' : 'เริ่มบทสนทนา')}</p>

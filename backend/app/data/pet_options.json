@@ -340,13 +340,19 @@
    },
    {
     "id": "white",
-    "th": "สีขาวปลอด",
-    "en": "Solid White"
+    "th": "สีขาว",
+    "en": "Solid White",
+    "aliases": [
+     "สีขาวปลอด"
+    ]
    },
    {
     "id": "black",
-    "th": "สีดำปลอด",
-    "en": "Solid Black"
+    "th": "สีดำ",
+    "en": "Solid Black",
+    "aliases": [
+     "สีดำปลอด"
+    ]
    },
    {
     "id": "tuxedo",

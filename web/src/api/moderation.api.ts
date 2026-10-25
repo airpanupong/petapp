@@ -26,7 +26,33 @@ export type AdminMetrics = {
   found_active: number;
   reports_open: number;
   ownership_pending: number;
+  images_flagged?: number;
 };
+
+export type ImageFlag = {
+  id: string;
+  url: string | null;
+  verdict: 'flagged' | 'rejected' | 'reviewed' | 'removed';
+  reason: string | null;
+  is_guest: boolean;
+  uploader_id: string | null;
+  created_at: string;
+};
+
+export async function listImageFlags() {
+  const r = await api.get<ApiSuccess<ImageFlag[]>>('/admin/image-flags');
+  return r.data.data;
+}
+
+export async function reviewImageFlag(id: string, action: 'approve' | 'remove') {
+  const r = await api.post<ApiSuccess<ImageFlag>>(`/admin/image-flags/${id}/${action}`);
+  return r.data.data;
+}
+
+export async function adminBlockGuestSender(postId: string) {
+  const r = await api.post<ApiSuccess<{blocked: boolean; removed_posts: number}>>(`/admin/found-posts/${postId}/block-guest`);
+  return r.data.data;
+}
 
 export type AdminReport = {
   id: string;
@@ -81,28 +107,34 @@ export async function reviewOwnership(
   return r.data.data;
 }
 
-export async function listAdminLostPosts() {
-  const r = await api.get<ApiSuccess<LostPost[]>>('/admin/lost-posts');
+export type AdminPostStatus = 'active' | 'resolved' | 'cancelled' | 'closed' | 'hidden' | 'removed';
+
+export type AdminPostPage<T> = {items: T[]; total: number; page: number; page_size: number};
+
+export async function listAdminPosts<K extends 'lost' | 'found'>(params: {
+  kind: K;
+  status?: AdminPostStatus;
+  q?: string;
+  page: number;
+  pageSize: number;
+}) {
+  const r = await api.get<ApiSuccess<AdminPostPage<K extends 'lost' ? LostPost : FoundPost>>>('/admin/posts', {
+    params: {kind: params.kind, status: params.status || undefined, q: params.q || undefined, page: params.page, page_size: params.pageSize},
+  });
   return r.data.data;
 }
 
-export async function listAdminFoundPosts() {
-  const r = await api.get<ApiSuccess<FoundPost[]>>('/admin/found-posts');
+export async function adminSetPostStatus(kind: 'lost' | 'found', id: string, status: AdminPostStatus) {
+  const r = await api.post<ApiSuccess<LostPost | FoundPost>>(`/admin/${kind}-posts/${id}/status`, {status});
   return r.data.data;
 }
 
-export async function adminCloseLost(id: string) {
-  const r = await api.post<ApiSuccess<LostPost>>(`/admin/lost-posts/${id}/close`);
-  return r.data.data;
-}
+export type AdminUserPage = {items: User[]; total: number; page: number; page_size: number};
 
-export async function adminCloseFound(id: string) {
-  const r = await api.post<ApiSuccess<FoundPost>>(`/admin/found-posts/${id}/close`);
-  return r.data.data;
-}
-
-export async function listAdminUsers(q?: string) {
-  const r = await api.get<ApiSuccess<User[]>>('/admin/users', {params: q ? {q} : undefined});
+export async function listAdminUsers(params: {q?: string; page: number; pageSize: number}) {
+  const r = await api.get<ApiSuccess<AdminUserPage>>('/admin/users', {
+    params: {q: params.q || undefined, page: params.page, page_size: params.pageSize},
+  });
   return r.data.data;
 }
 
@@ -111,12 +143,54 @@ export async function adminSetUserBlocked(id: string, blocked: boolean) {
   return r.data.data;
 }
 
-export async function adminSetUserRole(id: string, role: 'user' | 'admin') {
-  const r = await api.post<ApiSuccess<User>>(`/admin/users/${id}/role`, {role});
+export type AdminIntakePrivate = {
+  private_owner_name: string;
+  private_phone: string;
+  private_link?: string;
+  private_note?: string;
+};
+
+export async function adminCreateLostPost(
+  payload: AdminIntakePrivate & {
+    name: string;
+    animal_type: 'dog' | 'cat' | 'other';
+    breed?: string;
+    gender?: string;
+    color?: string;
+    distinctive_marks?: string;
+    lost_at: string;
+    latitude: number;
+    longitude: number;
+    location_text?: string;
+    search_radius_km: number;
+    description?: string;
+    reward_enabled: boolean;
+    reward_text?: string;
+    image_urls: string[];
+  },
+) {
+  const r = await api.post<ApiSuccess<LostPost>>('/admin/intake/lost', payload);
   return r.data.data;
 }
 
-export async function adminSetPostHidden(kind: 'lost' | 'found', id: string, hidden: boolean) {
-  const r = await api.post<ApiSuccess<LostPost | FoundPost>>(`/admin/${kind}-posts/${id}/${hidden ? 'hide' : 'unhide'}`);
+export async function adminCreateFoundPost(
+  payload: AdminIntakePrivate & {
+    animal_type: 'dog' | 'cat' | 'other';
+    breed_guess?: string;
+    color?: string;
+    description?: string;
+    found_at: string;
+    latitude: number;
+    longitude: number;
+    location_text?: string;
+    image_urls: string[];
+  },
+) {
+  const r = await api.post<ApiSuccess<FoundPost>>('/admin/intake/found', payload);
+  return r.data.data;
+}
+
+export async function adminSetUserRole(id: string, role: 'user' | 'admin') {
+  const r = await api.post<ApiSuccess<User>>(`/admin/users/${id}/role`, {role});
   return r.data.data;
 }

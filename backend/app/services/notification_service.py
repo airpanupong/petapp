@@ -7,6 +7,7 @@ from app.models.features import AppNotification, LostCaseFollower, NotificationP
 from app.models.lost_found import FoundPost, LostPost
 from app.models.pet import Pet, PetGuardian
 from app.services.push_service import send_push_to_user
+from app.services.realtime import queue_notification_ping
 from app.utils.geo import haversine_km
 
 
@@ -29,6 +30,8 @@ def add_notification(
     )
     db.add(row)
     db.flush()
+    if type_ != "chat_message":
+        queue_notification_ping(db, user_id)
     try:
         send_push_to_user(
             db,

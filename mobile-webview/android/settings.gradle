@@ -1,0 +1,15 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+
+// Android Studio launched from the Dock does not inherit the shell PATH, so `node` / `npx` are missing.
+def nodeBinary = System.getenv("NODE_BINARY")
+if (!nodeBinary) {
+    nodeBinary = ["/usr/local/bin/node", "/opt/homebrew/bin/node"].find { new File(it).exists() } ?: "node"
+}
+def cliBinary = settings.layout.rootDirectory.file("../node_modules/@react-native-community/cli/build/bin.js").asFile.absolutePath
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+    ex.autolinkLibrariesFromCommand([nodeBinary, cliBinary, "config"])
+}
+rootProject.name = 'com.pethaii.app'
+include ':app'
+includeBuild('../node_modules/@react-native/gradle-plugin')

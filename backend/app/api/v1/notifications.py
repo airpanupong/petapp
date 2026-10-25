@@ -9,7 +9,9 @@ from app.core.database import get_db
 from app.core.exceptions import AppError
 from app.core.responses import success
 from app.core.config import settings
-from app.core.pagination import older_than
+from app.core.pagination import make_cursor, older_than
+from app.core.roles import PRIVATE_POST_STATUSES
+from app.api.v1.lost_posts import lost_post_list_item
 from app.models.features import AppNotification, DeviceToken, LostCaseFollower, NotificationPreference, UserLocation, WebPushSubscription
 from app.models.lost_found import LostPost
 from app.models.user import User
@@ -132,6 +134,36 @@ def unfollow_case(post_id: str, db: Session = Depends(get_db), current_user: Use
     row = db.scalar(select(LostCaseFollower).where(LostCaseFollower.lost_post_id == post_id, LostCaseFollower.user_id == current_user.id))
     if row: db.delete(row); db.commit()
     return None
+
+
+@router.get("/me/following-cases")
+def following_cases(
+    before: str | None = None,
+    limit: int = Query(30, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Lost cases the user follows (not their own posts), most recently followed first."""
+    stmt = (
+        select(LostCaseFollower, LostPost)
+        .join(LostPost, LostPost.id == LostCaseFollower.lost_post_id)
+        .where(
+            LostCaseFollower.user_id == current_user.id,
+            LostPost.owner_id != current_user.id,
+            LostPost.status.not_in(PRIVATE_POST_STATUSES),
+        )
+    )
+    cursor = older_than(db, LostCaseFollower, LostCaseFollower.created_at, before)
+    if cursor is not None:
+        stmt = stmt.where(cursor)
+    rows = db.execute(stmt.order_by(LostCaseFollower.created_at.desc(), LostCaseFollower.id.desc()).limit(limit)).all()
+    items = []
+    for follow, post in rows:
+        item = lost_post_list_item(post)
+        item["followed_at"] = follow.created_at.isoformat()
+        item["cursor"] = make_cursor(follow.created_at, follow.id)
+        items.append(item)
+    return success(items)
 
 
 @router.get("/lost-posts/{post_id}/follow")

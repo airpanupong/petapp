@@ -81,6 +81,7 @@ function MyPostRow({row}: {row: Row}) {
               <span className="badge badge-found"><HeartHandshake size={12} /> มีคนพบ</span>
             )}
             <span className={`badge ${statusTone(post.status)}`}>{active ? 'กำลังประกาศ' : closedLabel}</span>
+            {post.created_by_admin ? <span className="badge badge-admin">เพิ่มโดยแอดมิน</span> : null}
           </div>
           <b className="my-post-title">{title}</b>
           <span className="my-post-meta">

@@ -16,6 +16,7 @@ from app.core.database import SessionLocal
 from app.core.exceptions import AppError, app_error_handler
 from app.core.responses import error_payload
 from app.services.lost_checkin_service import run_lost_checkins
+from app.services.realtime import inbox
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ async def _checkin_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    inbox.bind(asyncio.get_running_loop())
     task = None if settings.app_env == "test" else asyncio.create_task(_checkin_loop())
     yield
     if task is not None:

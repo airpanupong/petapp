@@ -12,10 +12,11 @@ import {confirmAction} from '../store/confirmStore';
 import {isStaff, roleLabel} from '../lib/roles';
 import {CatLoader} from '../components/CatLoader';
 import {MyPostList} from '../components/MyPostList';
-import {Avatar, ContactUs, EmptyState, PageTitle, SectionTitle, VersionTag} from '../components/ui';
+import {Avatar, ContactUs, EmptyState, Optional, PageTitle, SectionTitle, VersionTag} from '../components/ui';
 import {NotificationSetting} from '../components/PermissionHints';
 import {isStandalone} from '../lib/platform';
 import {LogoutButton} from '../components/LogoutButton';
+import {DeleteAccountButton} from '../components/DeleteAccountButton';
 
 export default function ProfilePage() {
   const user = useAuthStore(s => s.user);
@@ -102,7 +103,7 @@ export default function ProfilePage() {
               <input className="input" value={name} onChange={e => setName(e.target.value)} required />
             </label>
             <label className="field">
-              <span>เบอร์โทร</span>
+              <span>เบอร์โทร <Optional /></span>
               <input className="input" value={phone} onChange={e => setPhone(e.target.value)} />
             </label>
             <button className="btn btn-primary" disabled={save.isPending}>บันทึก</button>
@@ -120,6 +121,7 @@ export default function ProfilePage() {
               </Link>
             ) : null}
             <LogoutButton />
+            {user?.role !== 'super_admin' ? <DeleteAccountButton /> : null}
           </div>
           <ContactUs className="card" />
           <VersionTag />

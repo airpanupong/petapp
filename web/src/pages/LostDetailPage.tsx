@@ -1,7 +1,7 @@
 import {FormEvent, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {Bell, BellOff, Clock, Gift, MapPin, MessageCircle, Share2, Eye, Siren, PartyPopper, Pencil, XCircle} from 'lucide-react';
+import {Bookmark, BookmarkX, Clock, Gift, MapPin, MessageCircle, Share2, Eye, Siren, PartyPopper, Pencil, XCircle} from 'lucide-react';
 
 import {createSighting, getLostPost, listSightings, resolveLostPost, cancelLostPost} from '../api/community.api';
 import {followLostCase, getFollowStatus, unfollowLostCase} from '../api/features.api';
@@ -12,7 +12,9 @@ import {useAuthStore} from '../store/authStore';
 import {useRequireLogin} from '../store/loginPromptStore';
 import {toast} from '../store/toastStore';
 import {confirmAction} from '../store/confirmStore';
-import {animalLabel, formatDateTime, fromLocalInput, statusLabel, statusTone, timeAgo, toLocalInput} from '../lib/format';
+import {animalLabel, formatDateTime, fromLocalInput, statusLabel, statusTone, timeAgo, toLocalInput, viewsLabel} from '../lib/format';
+import {isStaff} from '../lib/roles';
+import {usePostView} from '../lib/postViews';
 import {MapView, MapMarker, LatLng} from '../components/MapView';
 import {PetMascot} from '../components/PetMascot';
 import {PostGallery} from '../components/MediaImage';
@@ -23,6 +25,7 @@ import {CatLoader} from '../components/CatLoader';
 import {ReportButton} from '../components/ReportButton';
 import {LostCheckinPrompt, needsCheckin} from '../components/LostCheckinPrompt';
 import {EmptyState, Modal, StatusBadge} from '../components/ui';
+import {AdminPrivateNote} from '../components/AdminPrivateNote';
 import {sharePage} from '../lib/share';
 import {useUserPosition} from '../lib/geo';
 
@@ -34,6 +37,7 @@ export default function LostDetailPage() {
   const authed = useAuthStore(s => s.status === 'authenticated');
   const requireLogin = useRequireLogin();
   const post = useQuery({queryKey: ['lost-post', id], queryFn: () => getLostPost(id)});
+  usePostView('lost', id, post.isSuccess);
   const {position: myPosition} = useUserPosition({prompt: false});
   const sightings = useQuery({queryKey: ['sightings', id], queryFn: () => listSightings(id)});
   const follow = useQuery({queryKey: ['follow', id], queryFn: () => getFollowStatus(id), enabled: authed});
@@ -41,7 +45,10 @@ export default function LostDetailPage() {
 
   const toggleFollow = useMutation({
     mutationFn: async () => (follow.data ? unfollowLostCase(id) : followLostCase(id)),
-    onSuccess: () => void qc.invalidateQueries({queryKey: ['follow', id]}),
+    onSuccess: () => {
+      void qc.invalidateQueries({queryKey: ['follow', id]});
+      void qc.invalidateQueries({queryKey: ['following']});
+    },
   });
 
   const closeCase = useMutation({
@@ -93,12 +100,15 @@ export default function LostDetailPage() {
               </div>
             </div>
           ) : null}
-          {isOwner && needsCheckin(p) ? <LostCheckinPrompt post={p} /> : null}
+          {isOwner && !p.created_by_admin && needsCheckin(p) ? <LostCheckinPrompt post={p} /> : null}
           <PostGallery urls={photos} alt={p.pet?.name ?? p.title} type={p.pet?.animal_type} />
           <div className="card" style={{display: 'flex', flexDirection: 'column', gap: 12}}>
             <div className="section-title">
               <div>
-                <span className="badge badge-lost"><Siren size={13} /> ตามหาน้อง</span>
+                <span style={{display: 'inline-flex', gap: 8, flexWrap: 'wrap'}}>
+                  <span className="badge badge-lost"><Siren size={13} /> ตามหาน้อง</span>
+                  {p.created_by_admin ? <span className="badge badge-admin">เพิ่มโดยแอดมิน</span> : null}
+                </span>
                 <h1 style={{fontSize: 28, marginTop: 8}}>{p.pet?.name ?? p.title}</h1>
                 <p className="muted small">
                   {[animalLabel(p.pet?.animal_type), p.pet?.breed, p.pet?.color].filter(Boolean).join(' · ')}
@@ -109,6 +119,7 @@ export default function LostDetailPage() {
             <div className="post-meta" style={{fontSize: 14}}>
               <span><MapPin size={15} /> {p.location_text || `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`}</span>
               <span><Clock size={15} /> {formatDateTime(p.lost_at)} ({timeAgo(p.lost_at)})</span>
+              <span><Eye size={15} /> {viewsLabel(p.view_count)}</span>
             </div>
             {p.reward_enabled ? (
               <div className="badge tone-butter" style={{padding: '8px 12px', fontSize: 14}}>
@@ -120,6 +131,7 @@ export default function LostDetailPage() {
               {!isOwner ? <ReportButton targetType="lost_post" targetId={p.id} /> : null}
             </div>
           </div>
+          {isStaff(me?.role) && p.created_by_admin ? <AdminPrivateNote post={p} /> : null}
 
           <div className="card" style={{display: 'flex', flexDirection: 'column', gap: 12}}>
             <h3>จุดที่หาย & เบาะแส ({sightingCount})</h3>
@@ -224,7 +236,7 @@ export default function LostDetailPage() {
                 className="btn btn-soft"
                 onClick={() => requireLogin(() => toggleFollow.mutate(), 'เข้าสู่ระบบเพื่อรับแจ้งเตือนเมื่อเคสนี้มีความคืบหน้า')}
                 disabled={toggleFollow.isPending}>
-                {follow.data ? <BellOff size={18} /> : <Bell size={18} />}
+                {follow.data ? <BookmarkX size={18} /> : <Bookmark size={18} />}
                 {follow.data ? 'เลิกติดตาม' : 'ติดตามเคสนี้'}
               </button>
             </>
@@ -284,8 +296,8 @@ function SightingModal({open, onClose, postId}: {open: boolean; onClose: () => v
           <input className="input" type="datetime-local" value={seenAt} onChange={e => setSeenAt(e.target.value)} required />
         </label>
         <LocationPicker value={position} onChange={setPosition} locationText={locationText} onLocationTextChange={setLocationText} />
-        <input className="input" placeholder="น้องเดินไปทางไหน?" value={direction} onChange={e => setDirection(e.target.value)} />
-        <textarea className="textarea" placeholder="รายละเอียดเพิ่มเติม" value={description} onChange={e => setDescription(e.target.value)} />
+        <input className="input" placeholder="น้องเดินไปทางไหน? (ไม่บังคับ)" value={direction} onChange={e => setDirection(e.target.value)} />
+        <textarea className="textarea" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)" value={description} onChange={e => setDescription(e.target.value)} />
         <MultiImagePicker value={photos} onChange={setPhotos} label="แนบรูปที่เห็นน้อง" />
         <button className="btn btn-primary" disabled={!position || submit.isPending}>
           {submit.isPending ? (photos.length ? 'กำลังอัปโหลดรูป...' : 'กำลังส่ง...') : 'ส่งเบาะแส'}

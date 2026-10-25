@@ -1,0 +1,67 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pethaii-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "api.pethaii.com", "custom_domain": true },
+    { "pattern": "api-cf.pethaii.com", "custom_domain": true }
+  ],
+  "placement": { "mode": "smart" },
+  "limits": { "cpu_ms": 30000 },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 }
+  },
+  "triggers": { "crons": ["*/30 * * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pethaii",
+      "database_id": "811ad562-3784-4c72-989b-c546063df98b",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "UPLOADS", "bucket_name": "pethaii-uploads" }
+  ],
+  "images": { "binding": "IMAGES" },
+  "ai": { "binding": "AI" },
+  // Per Cloudflare location, keyed by the hashed client IP (see services/guest.ts).
+  "ratelimits": [
+    { "name": "GUEST_SESSION_LIMIT", "namespace_id": "1101", "simple": { "limit": 5, "period": 60 } },
+    { "name": "GUEST_UPLOAD_LIMIT", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } },
+    { "name": "GUEST_POST_LIMIT", "namespace_id": "1103", "simple": { "limit": 6, "period": 60 } }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "INBOX", "class_name": "InboxDO" },
+      { "name": "GEO", "class_name": "GeoDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["InboxDO", "GeoDO"] }
+  ],
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true },
+    { "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }
+  ],
+  "vars": {
+    "APP_ENV": "production",
+    "APP_NAME": "Pet haii API",
+    "API_V1_PREFIX": "/api/v1",
+    "CORS_ORIGINS": "*",
+    // Base for new upload URLs.
+    "PUBLIC_API_BASE": "https://api.pethaii.com",
+    "SMTP_FROM": "Pet haii <support@pethaii.com>",
+    "VAPID_PUBLIC_KEY": "BB8PP17TR9jTGQD102nc14cLnaYA1trJs0bUxvKczP-stWsE-HrfsvajWF7ihnR_j01jxdcQCFNhOG48XTQkkV8",
+    "VAPID_SUBJECT": "mailto:support@pethaii.com",
+    "SUPER_ADMIN_EMAIL": "support@pethaii.com",
+    // "off" disables web push and the check-in cron, for a copy that must not notify real users
+    // (e.g. a staging deploy while another backend is live).
+    "EXTERNAL_EFFECTS": "on"
+  }
+  // Secrets (wrangler secret put): SECRET_KEY, RESEND_API_KEY, VAPID_PRIVATE_KEY, SUPER_ADMIN_PASSWORD, TURNSTILE_SECRET_KEY
+}

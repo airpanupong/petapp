@@ -62,7 +62,7 @@ def test_feed_pages_newest_first_and_skips_own_posts(client):
 def test_feed_filters_breed_and_color_including_typed_values(client):
     owner = auth_headers(client, "feed-filter@example.com")
     lost_post(client, owner, "Air", 1, breed="แมนคูน", color="ดำ")
-    lost_post(client, owner, "Pixel", 2, breed="เมนคูน", color="สีขาวปลอด")
+    lost_post(client, owner, "Pixel", 2, breed="เมนคูน", color="สีขาวปลอด")  # legacy label still matches "white"
     lost_post(client, owner, "Odd", 3, breed="แมวลายหินอ่อน", color="ดำแต้มขาว")
     found_post(client, owner, 4, breed_guess="Maine Coon", color="black")
 
@@ -117,3 +117,17 @@ def test_messages_load_latest_first_then_older(client):
     older = client.get(url, headers=bob, params={"limit": 3, "before": f"{latest[0]['created_at']}|{latest[0]['id']}"}).json()["data"]
     assert [m["content"] for m in older] == ["1", "2", "3"]
     assert [m["content"] for m in client.get(url, headers=bob).json()["data"]] == [str(i) for i in range(7)]
+
+
+def test_following_cases_lists_followed_posts_newest_first(client):
+    owner = auth_headers(client, "follow-owner@example.com")
+    fan = auth_headers(client, "follow-fan@example.com")
+    posts = [lost_post(client, owner, f"Cat{i}", i + 1) for i in range(3)]
+    for p in posts:
+        assert client.post(f"{API}/lost-posts/{p['id']}/follow", headers=fan).status_code == 201
+    client.delete(f"{API}/lost-posts/{posts[1]['id']}/follow", headers=fan)
+
+    first = client.get(f"{API}/me/following-cases", headers=fan, params={"limit": 1}).json()["data"]
+    rest = client.get(f"{API}/me/following-cases", headers=fan, params={"limit": 5, "before": first[0]["cursor"]}).json()["data"]
+    assert [c["pet"]["name"] for c in first + rest] == ["Cat2", "Cat0"]
+    assert client.get(f"{API}/me/following-cases", headers=owner).json()["data"] == []

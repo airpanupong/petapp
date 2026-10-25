@@ -4,6 +4,9 @@ import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {HeartHandshake, Save} from 'lucide-react';
 
 import {createFoundPost, getFoundPost, updateFoundPost} from '../api/community.api';
+import {createGuestFoundPost, createGuestSession, guestUploadImage} from '../api/guest.api';
+import {Turnstile} from '../components/Turnstile';
+import {useRequireLogin} from '../store/loginPromptStore';
 import {uploadImage} from '../api/uploads.api';
 import {getApiErrorMessage} from '../api/client';
 import {fromLocalInput, toLocalInput} from '../lib/format';
@@ -16,9 +19,9 @@ import {LocationPicker} from '../components/LocationPicker';
 import {MultiImagePicker} from '../components/MultiImagePicker';
 import {downscaleImage} from '../lib/image';
 import {CatLoader} from '../components/CatLoader';
-import {AnimalOption} from '../components/PetMascot';
+import {AnimalOption, PetMascot} from '../components/PetMascot';
 import {PetAttributeField} from '../components/PetAttributeField';
-import {EmptyState, PageTitle} from '../components/ui';
+import {EmptyState, Optional, PageTitle} from '../components/ui';
 
 const ANIMALS = ['dog', 'cat', 'other'] as const;
 
@@ -38,9 +41,17 @@ function EditFoundPost({id}: {id: string}) {
   return <FoundPostForm key={post.data.id} editing={post.data} />;
 }
 
+const LINK = /(https?:\/\/|www\.|line\.me|t\.me\/|bit\.ly|\b[a-z0-9-]+\.(com|net|org|io|co|me|ly|xyz|info|shop|site|online|link|app|top|vip|club|bet)\b)/i;
+
+let guestPass: {token: string; expiresAt: number} | null = null;
+
 function FoundPostForm({editing}: {editing?: FoundPost}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const guest = useAuthStore(s => s.status === 'guest') && !editing;
+  const requireLogin = useRequireLogin();
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const [animal, setAnimal] = useState<'dog' | 'cat' | 'other'>(editing?.animal_type ?? 'dog');
   const [breed, setBreed] = useState(editing?.breed_guess ?? '');
   const [color, setColor] = useState(editing?.color ?? '');
@@ -55,10 +66,65 @@ function FoundPostForm({editing}: {editing?: FoundPost}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const guestToken = async () => {
+    if (guestPass && guestPass.expiresAt - Date.now() > 60_000) return guestPass.token;
+    if (!turnstileToken) throw new Error('กรุณายืนยันว่าไม่ใช่บอทก่อนส่ง');
+    setTurnstileToken(null);
+    setTurnstileKey(k => k + 1);
+    const session = await createGuestSession(turnstileToken);
+    guestPass = {token: session.guest_token, expiresAt: Date.parse(session.expires_at)};
+    return guestPass.token;
+  };
+
+  const submitGuest = async (at: LatLng) => {
+    const token = await guestToken();
+    const image_urls = [];
+    for (const f of photos) image_urls.push(await guestUploadImage(await downscaleImage(f), token));
+    return createGuestFoundPost(
+      {
+        animal_type: animal,
+        image_urls,
+        found_at: fromLocalInput(foundAt),
+        latitude: at.latitude,
+        longitude: at.longitude,
+        breed_guess: breed.trim() || undefined,
+        color: color.trim() || undefined,
+        description: description || undefined,
+        location_text: locationText || undefined,
+      },
+      token,
+    );
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!position) {
       setError('กรุณาปักหมุดตำแหน่งที่พบ');
+      return;
+    }
+    if (guest && !photos.length) {
+      setError('กรุณาเพิ่มรูปน้องอย่างน้อย 1 รูป');
+      return;
+    }
+    if (guest && [description, locationText, breed, color].some(v => LINK.test(v))) {
+      setError('ไม่สามารถใส่ลิงก์ในการแจ้งแบบไม่เข้าสู่ระบบได้');
+      return;
+    }
+    if (guest) {
+      setBusy(true);
+      setError(null);
+      try {
+        const post = await submitGuest(position);
+        void qc.invalidateQueries({queryKey: ['feed']});
+        toast.ok('ขอบคุณที่ช่วยแจ้งเบาะแสนะ');
+        navigate(`/found/${post.id}`, {replace: true});
+      } catch (err) {
+        const code = (err as {response?: {data?: {error?: {code?: string}}}}).response?.data?.error?.code;
+        if (code?.startsWith('GUEST_TOKEN')) guestPass = null;
+        setError(getApiErrorMessage(err));
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (editing) {
@@ -114,6 +180,19 @@ function FoundPostForm({editing}: {editing?: FoundPost}) {
         title={editing ? 'แก้ไขประกาศพบน้อง' : 'ฉันพบน้อง'}
         subtitle={editing ? 'อัปเดตรูป ตำแหน่ง หรือรายละเอียดให้ชัดขึ้น' : 'ขอบคุณที่ใจดี รูปชัด ๆ ช่วยให้เจ้าของจำน้องได้เร็วขึ้น'}
       />
+      {guest ? (
+        <div className="locked-note" style={{marginBottom: 16}}>
+          <PetMascot type="cat" size={40} />
+          <span className="grow">
+            <b>แจ้งแบบไม่เข้าสู่ระบบเป็นเบาะแสเท่านั้น</b>
+            <br />
+            เจ้าของจะติดต่อคุณไม่ได้ หากคุณรับน้องไว้ดูแล กรุณาเข้าสู่ระบบเพื่อให้เจ้าของติดต่อกลับได้
+          </span>
+          <button type="button" className="btn btn-soft btn-sm" onClick={() => requireLogin(() => undefined, 'เข้าสู่ระบบเพื่อให้เจ้าของน้องติดต่อคุณได้')}>
+            เข้าสู่ระบบ
+          </button>
+        </div>
+      ) : null}
       <form className="split" onSubmit={submit}>
         <div className="card form">
           <MultiImagePicker
@@ -123,6 +202,7 @@ function FoundPostForm({editing}: {editing?: FoundPost}) {
             onExistingChange={setKeptPhotos}
             label="ถ่ายรูปน้องที่พบ"
             coverLabel="รูปหน้าปก"
+            required={guest}
             large
           />
           <div className="field">
@@ -146,6 +226,7 @@ function FoundPostForm({editing}: {editing?: FoundPost}) {
               animal={animal}
               attribute="breed"
               label="สายพันธุ์ (ถ้าพอเดาได้)"
+              optional
               value={breed}
               onChange={setBreed}
               emptyLabel="ไม่แน่ใจ"
@@ -156,6 +237,7 @@ function FoundPostForm({editing}: {editing?: FoundPost}) {
               animal={animal}
               attribute="color"
               label="สี"
+              optional
               value={color}
               onChange={setColor}
               emptyLabel="ไม่แน่ใจ"
@@ -167,17 +249,18 @@ function FoundPostForm({editing}: {editing?: FoundPost}) {
             <input className="input" type="datetime-local" value={foundAt} onChange={e => setFoundAt(e.target.value)} required />
           </label>
           <label className="field">
-            <span>รายละเอียด</span>
+            <span>รายละเอียด <Optional /></span>
             <textarea
               className="textarea"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="ใส่ปลอกคอ? ตอนนี้น้องอยู่กับใคร?"
+              placeholder="ที่อยู่หรือสถานที่ที่น้องพบ หรือคุณสมบัติที่น้องมี เช่น ปลอกคอสีแดง ขี้กลัวคนแปลกหน้า ชอบขนม..."
             />
           </label>
         </div>
         <div className="card form split-sticky">
           <LocationPicker value={position} onChange={setPosition} locationText={locationText} onLocationTextChange={setLocationText} />
+          {guest ? <Turnstile onToken={setTurnstileToken} resetKey={turnstileKey} /> : null}
           {error ? <p className="error-text">{error}</p> : null}
           {editing ? (
             <div className="btn-row">
@@ -189,8 +272,8 @@ function FoundPostForm({editing}: {editing?: FoundPost}) {
               </button>
             </div>
           ) : (
-            <button className="btn btn-mint btn-block" disabled={busy}>
-              {busy ? 'กำลังโพสต์...' : <><HeartHandshake size={18} /> โพสต์ว่าพบน้อง</>}
+            <button className="btn btn-mint btn-block" disabled={busy || (guest && !turnstileToken && !guestPass)}>
+              {busy ? (guest ? 'กำลังตรวจรูปและส่ง...' : 'กำลังโพสต์...') : <><HeartHandshake size={18} /> {guest ? 'ส่งเบาะแส' : 'โพสต์ว่าพบน้อง'}</>}
             </button>
           )}
         </div>

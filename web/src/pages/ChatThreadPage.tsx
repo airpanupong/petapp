@@ -1,10 +1,11 @@
-import {FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
+import {FormEvent, KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Link, useParams} from 'react-router-dom';
-import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {InfiniteData, useInfiniteQuery, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {ArrowLeft, ImagePlus, Send, Ban, Check, CheckCheck} from 'lucide-react';
 import {PetMascot} from '../components/PetMascot';
 
-import {getConversation, listMessages, sendMessage} from '../api/chat.api';
+import {ChatMessage, getConversation, listMessages, sendMessage} from '../api/chat.api';
+import {setViewingConversation} from '../lib/chatInbox';
 import {blockUser} from '../api/moderation.api';
 import {resolveMediaUrl, uploadImage} from '../api/uploads.api';
 import {getApiErrorMessage} from '../api/client';
@@ -16,7 +17,8 @@ import {cursorOf} from '../lib/pagination';
 import {CatLoader} from '../components/CatLoader';
 import {InfiniteSentinel} from '../components/InfiniteSentinel';
 import {ChatContextBanner, ChatContextDivider} from '../components/ChatContext';
-import {Avatar} from '../components/ui';
+import {Avatar, StaffBadge} from '../components/ui';
+import {isStaff} from '../lib/roles';
 import {Lightbox} from '../components/MediaImage';
 
 const PAGE_SIZE = 40;
@@ -32,7 +34,7 @@ export default function ChatThreadPage() {
     queryFn: ({pageParam}) => listMessages(id, {before: pageParam, limit: PAGE_SIZE}),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: last => (last.length === PAGE_SIZE ? cursorOf(last[0]) : undefined),
-    refetchInterval: 5000,
+    staleTime: 0,
   });
   const rows = useMemo(() => [...(messages.data?.pages ?? [])].reverse().flat(), [messages.data]);
   const [text, setText] = useState('');
@@ -42,15 +44,24 @@ export default function ChatThreadPage() {
   const {fetchNextPage} = messages;
   const loadOlder = useCallback(() => void fetchNextPage(), [fetchNextPage]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const max = parseFloat(getComputedStyle(el).maxHeight) || Infinity;
+    const next = el.scrollHeight + el.offsetHeight - el.clientHeight;
+    el.style.height = `${Math.min(next, max)}px`;
+    el.style.overflowY = next > max ? 'auto' : 'hidden';
+  }, [text]);
 
   const other = conversation.data?.other_member ?? conversation.data?.members?.find(m => m.id !== me?.id);
 
   useEffect(() => {
-    if (!messages.dataUpdatedAt) return;
-    void qc.invalidateQueries({queryKey: ['chat-unread']});
-    void qc.invalidateQueries({queryKey: ['notifications']});
-    void qc.invalidateQueries({queryKey: ['conversations']});
-  }, [messages.dataUpdatedAt, qc]);
+    setViewingConversation(id);
+    return () => setViewingConversation(null);
+  }, [id]);
 
   const firstId = rows[0]?.id;
   const lastId = rows[rows.length - 1]?.id;
@@ -69,10 +80,14 @@ export default function ChatThreadPage() {
 
   const send = useMutation({
     mutationFn: (payload: {content?: string; image_url?: string; message_type?: string}) => sendMessage(id, payload),
-    onSuccess: () => {
+    onSuccess: saved => {
       setText('');
-      void qc.invalidateQueries({queryKey: ['messages', id]});
-      void qc.invalidateQueries({queryKey: ['conversations']});
+      qc.setQueryData<InfiniteData<ChatMessage[]>>(['messages', id], current => {
+        if (!current?.pages.length || current.pages.some(page => page.some(row => row.id === saved.id))) return current;
+        const pages = [...current.pages];
+        pages[0] = [...pages[0], saved];
+        return {...current, pages};
+      });
     },
     onError: e => toast.error(getApiErrorMessage(e)),
   });
@@ -80,7 +95,15 @@ export default function ChatThreadPage() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const content = text.trim();
-    if (content) send.mutate({content});
+    if (content && !send.isPending) send.mutate({content});
+  };
+
+  // Enter sends on desktop; Shift+Enter, IME composition and touch keyboards insert a newline.
+  const onTextKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    e.preventDefault();
+    e.currentTarget.form?.requestSubmit();
   };
 
   const sendImage = async (file?: File) => {
@@ -119,8 +142,13 @@ export default function ChatThreadPage() {
           </Link>
           <Avatar name={other?.display_name} url={other?.avatar_url} />
           <div style={{flex: 1, minWidth: 0}}>
-            <b style={{fontWeight: 500}}>{other?.display_name ?? 'แชท'}</b>
-            <p className="muted" style={{fontSize: 12}}>คุยกันอย่างสุภาพ อย่าโอนเงินก่อนเจอน้องนะ</p>
+            <div className="chat-list-name">
+              <b style={{fontWeight: 500}}>{other?.display_name ?? 'แชท'}</b>
+              <StaffBadge role={other?.role} />
+            </div>
+            <p className="muted" style={{fontSize: 12}}>
+              {isStaff(other?.role) ? 'ข้อความจากทีมผู้ดูแลระบบ Pet haii' : 'คุยกันอย่างสุภาพ อย่าโอนเงินก่อนเจอน้องนะ'}
+            </p>
           </div>
           {other ? (
             <button className="icon-btn" onClick={block} title="บล็อก">
@@ -171,7 +199,16 @@ export default function ChatThreadPage() {
           <button type="button" className="icon-btn" onClick={() => fileRef.current?.click()} aria-label="ส่งรูป">
             <ImagePlus size={19} />
           </button>
-          <input className="input" placeholder="พิมพ์ข้อความ..." value={text} onChange={e => setText(e.target.value)} />
+          <textarea
+            ref={textRef}
+            className="input chat-input-text"
+            rows={1}
+            maxLength={4000}
+            placeholder="พิมพ์ข้อความ..."
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={onTextKeyDown}
+          />
           <button className="btn btn-primary" disabled={!text.trim() || send.isPending} aria-label="ส่ง">
             <Send size={17} />
           </button>

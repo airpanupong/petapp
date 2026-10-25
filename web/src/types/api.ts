@@ -72,10 +72,16 @@ export type LostPost = {
   image_url?: string | null;
   image_urls?: string[];
   share_token: string;
+  view_count?: number;
   created_at: string;
   closed_at?: string | null;
   checkin_asked_at?: string | null;
   checkin_deadline_at?: string | null;
+  created_by_admin?: boolean;
+  private_owner_name?: string | null;
+  private_phone?: string | null;
+  private_link?: string | null;
+  private_note?: string | null;
   distance_km?: number;
   pet?: Pick<Pet, 'id' | 'name' | 'animal_type' | 'breed' | 'color' | 'profile_image_url'>;
 };
@@ -95,7 +101,14 @@ export type FoundPost = {
   location_text?: string | null;
   status: string;
   share_token: string;
+  is_guest?: boolean;
+  view_count?: number;
   created_at: string;
+  created_by_admin?: boolean;
+  private_owner_name?: string | null;
+  private_phone?: string | null;
+  private_link?: string | null;
+  private_note?: string | null;
   distance_km?: number;
 };
 

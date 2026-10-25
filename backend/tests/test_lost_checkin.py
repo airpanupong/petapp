@@ -9,7 +9,7 @@ from app.services.lost_checkin_service import run_lost_checkins
 def auth_headers(client, email):
     res = client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "StrongPass123!", "display_name": email.split("@")[0]},
+        json={"email": email, "password": "StrongPass123!", "display_name": email.split("@")[0], "accept_privacy": True, "accept_data_access": True},
     )
     assert res.status_code == 201, res.text
     return {"Authorization": f"Bearer {res.json()['data']['access_token']}"}

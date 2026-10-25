@@ -1,7 +1,10 @@
+CONSENT = {"accept_privacy": True, "accept_data_access": True}
+
+
 def register(client, email="big@example.com"):
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "StrongPass123!", "display_name": "Big"},
+        json={"email": email, "password": "StrongPass123!", "display_name": "Big", **CONSENT},
     )
     assert response.status_code == 201, response.text
     return response.json()["data"]
@@ -244,3 +247,18 @@ def test_upload_is_downscaled_and_reencoded(client):
     assert "immutable" in got.headers["cache-control"]
     with Image.open(io.BytesIO(got.content)) as img:
         assert max(img.size) == 1600
+
+
+def test_register_requires_pdpa_consent(client):
+    payload = {"email": "noconsent@example.com", "password": "StrongPass123!", "display_name": "No"}
+    for consent in ({}, {"accept_privacy": True}, {"accept_data_access": True}):
+        res = client.post("/api/v1/auth/register", json={**payload, **consent})
+        assert res.status_code == 400 and res.json()["error"]["code"] == "CONSENT_REQUIRED"
+
+    from app.core.database import SessionLocal
+    from app.models.user import User
+
+    register(client, "consent@example.com")
+    with SessionLocal() as db:
+        user = db.query(User).filter_by(email="consent@example.com").one()
+        assert user.privacy_accepted_at and user.data_access_accepted_at and user.consent_version

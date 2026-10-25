@@ -1,11 +1,12 @@
-import {ReactNode, useEffect} from 'react';
+import {ReactNode, useEffect, useRef} from 'react';
 import L from 'leaflet';
 import {MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, Circle, CircleMarker} from 'react-leaflet';
 import {Eye, HeartHandshake, LocateFixed, LucideIcon, Siren} from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
-import {mascotSrc} from './PetMascot';
 import type {UserPosition} from '../lib/geo';
+import {MAP_TILE_ATTR, MAP_TILE_MAX_ZOOM, MAP_TILE_URL, WORLD_VIEW_ZOOM} from '../lib/mapImagery';
+import {pinInnerHtml, type PinKind} from '../lib/mapPins';
 
 export type LatLng = {latitude: number; longitude: number};
 
@@ -16,6 +17,8 @@ export type MapMarker = {
   animal?: string | null;
   icon?: PinGlyph;
   popup?: ReactNode;
+  title?: string;
+  href?: string;
 };
 
 type PinGlyph = 'eye' | 'user' | 'pin';
@@ -39,39 +42,81 @@ function PinPopup({kind, children}: {kind: MapMarker['kind']; children: ReactNod
   );
 }
 
-// lucide-react paths, inlined because Leaflet divIcons take an HTML string.
-const GLYPHS: Record<PinGlyph, string> = {
-  eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
-  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-  pin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
-};
-
 const iconCache = new Map<string, L.DivIcon>();
 
-function pinIcon({kind, animal, icon: glyph}: MapMarker) {
-  const inner = glyph
-    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[glyph]}</svg>`
-    : `<img src="${mascotSrc(animal, true)}" alt="" />`;
-  const key = `${kind}:${inner}`;
+function pinIcon(m: MapMarker) {
+  const key = `${m.kind}-${m.animal ?? ''}`;
   let icon = iconCache.get(key);
   if (!icon) {
     icon = L.divIcon({
-      className: '',
-      html: `<div class="map-pin pin-${kind}">${inner}</div>`,
-      iconSize: [42, 42],
-      iconAnchor: [4, 42],
-      popupAnchor: [17, -38],
+      className: 'map-pin-wrap',
+      html: pinInnerHtml(m.kind as PinKind, m.animal),
+      iconSize: [44, 52],
+      iconAnchor: [22, 50],
+      popupAnchor: [0, -44],
     });
     iconCache.set(key, icon);
   }
   return icon;
 }
 
-function Recenter({center, zoom, recenterKey}: {center: LatLng; zoom?: number; recenterKey?: number}) {
+/**
+ * Only flies when `recenterKey` changes — never fights the user’s pinch/scroll zoom.
+ */
+function Recenter({center, zoom, recenterKey}: {center: LatLng; zoom: number; recenterKey?: number}) {
   const map = useMap();
+  const lastKey = useRef<number | undefined>(undefined);
+
   useEffect(() => {
-    map.setView([center.latitude, center.longitude], zoom ?? map.getZoom(), {animate: true});
-  }, [center.latitude, center.longitude, zoom, recenterKey, map]);
+    if (recenterKey === undefined) return;
+    if (lastKey.current === recenterKey) return;
+    lastKey.current = recenterKey;
+    const fromZoom = map.getZoom();
+    const delta = Math.abs(fromZoom - zoom);
+    const duration = Math.min(6.5, Math.max(1.4, 1.2 + delta * 0.42));
+    map.flyTo([center.latitude, center.longitude], zoom, {
+      animate: true,
+      duration,
+      easeLinearity: 0.12,
+    });
+  }, [recenterKey, center.latitude, center.longitude, zoom, map]);
+
+  return null;
+}
+
+/** Sync parent world/local mode from Leaflet zoom without resetting the camera. */
+function WorldZoomSync({
+  threshold,
+  worldMode,
+  onWorldModeChange,
+}: {
+  threshold: number;
+  worldMode: boolean;
+  onWorldModeChange?: (world: boolean, zoom: number) => void;
+}) {
+  const map = useMap();
+  const worldRef = useRef(worldMode);
+  worldRef.current = worldMode;
+
+  useEffect(() => {
+    if (!onWorldModeChange) return;
+    const sync = () => {
+      try {
+        const z = map.getZoom();
+        const world = z <= threshold;
+        if (world !== worldRef.current) onWorldModeChange(world, z);
+      } catch {
+        /* ignore */
+      }
+    };
+    map.on('zoomend', sync);
+    map.on('zoom', sync);
+    return () => {
+      map.off('zoomend', sync);
+      map.off('zoom', sync);
+    };
+  }, [map, threshold, onWorldModeChange]);
+
   return null;
 }
 
@@ -99,9 +144,12 @@ type Props = {
   radiusKm?: number;
   onPick?: (p: LatLng) => void;
   userPosition?: UserPosition | null;
-  /** Bump to fly back to `center` even when it did not change. */
   recenterKey?: number;
   className?: string;
+  worldMode?: boolean;
+  onWorldModeChange?: (world: boolean, zoom: number) => void;
+  worldZoomThreshold?: number;
+  showLegend?: boolean;
 };
 
 function UserDot({position}: {position: UserPosition}) {
@@ -118,7 +166,13 @@ function UserDot({position}: {position: UserPosition}) {
       ) : null}
       <CircleMarker
         center={latLng}
-        radius={8}
+        radius={14}
+        interactive={false}
+        pathOptions={{color: '#2f7bf5', weight: 0, fillColor: '#2f7bf5', fillOpacity: 0.2, className: 'user-dot-halo'}}
+      />
+      <CircleMarker
+        center={latLng}
+        radius={9}
         pathOptions={{color: '#fff', weight: 3, fillColor: '#2f7bf5', fillOpacity: 1, className: 'user-dot'}}>
         <Popup>
           <PinPopup kind="me">คุณอยู่ที่นี่</PinPopup>
@@ -128,39 +182,66 @@ function UserDot({position}: {position: UserPosition}) {
   );
 }
 
-export function MapView({center, zoom = 14, markers = [], radiusKm, onPick, userPosition, recenterKey, className = ''}: Props) {
+export function MapView({
+  center,
+  zoom = 14,
+  markers = [],
+  radiusKm,
+  onPick,
+  userPosition,
+  recenterKey = 0,
+  className = '',
+  worldMode = false,
+  onWorldModeChange,
+  worldZoomThreshold = WORLD_VIEW_ZOOM,
+  showLegend = true,
+}: Props) {
   return (
-    <MapContainer
-      center={[center.latitude, center.longitude]}
-      zoom={zoom}
-      className={`map ${className}`}
-      scrollWheelZoom
-      attributionControl>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxZoom={19}
-      />
-      <Recenter center={center} recenterKey={recenterKey} />
-      <InvalidateOnResize />
-      {onPick ? <ClickPicker onPick={onPick} /> : null}
-      {radiusKm ? (
-        <Circle
-          center={[center.latitude, center.longitude]}
-          radius={radiusKm * 1000}
-          pathOptions={{color: '#f2657f', weight: 1.5, fillColor: '#ff8fa3', fillOpacity: 0.08}}
-        />
+    <div className={`map-host map-atlas ${worldMode ? 'is-globe-view' : ''} ${className}`}>
+      {showLegend ? (
+        <div className="map-pin-legend" aria-hidden>
+          <span>
+            <i className="lg-lost" /> ตามหา
+          </span>
+          <span>
+            <i className="lg-found" /> พบ
+          </span>
+          <span>
+            <i className="lg-sighting" /> เบาะแส
+          </span>
+        </div>
       ) : null}
-      {markers.map(m => (
-        <Marker key={m.id} position={[m.position.latitude, m.position.longitude]} icon={pinIcon(m)}>
-          {m.popup ? (
-            <Popup>
-              <PinPopup kind={m.kind}>{m.popup}</PinPopup>
-            </Popup>
-          ) : null}
-        </Marker>
-      ))}
-      {userPosition ? <UserDot position={userPosition} /> : null}
-    </MapContainer>
+      <MapContainer
+        center={[center.latitude, center.longitude]}
+        zoom={zoom}
+        minZoom={2}
+        maxZoom={MAP_TILE_MAX_ZOOM}
+        className="map map-fill"
+        scrollWheelZoom
+        attributionControl>
+        <TileLayer attribution={MAP_TILE_ATTR} url={MAP_TILE_URL} maxZoom={MAP_TILE_MAX_ZOOM} />
+        <Recenter center={center} zoom={zoom} recenterKey={recenterKey} />
+        <InvalidateOnResize />
+        <WorldZoomSync threshold={worldZoomThreshold} worldMode={worldMode} onWorldModeChange={onWorldModeChange} />
+        {onPick ? <ClickPicker onPick={onPick} /> : null}
+        {radiusKm && !worldMode ? (
+          <Circle
+            center={[center.latitude, center.longitude]}
+            radius={radiusKm * 1000}
+            pathOptions={{color: '#f2657f', weight: 1.5, fillColor: '#ff8fa3', fillOpacity: 0.08}}
+          />
+        ) : null}
+        {markers.map(m => (
+          <Marker key={m.id} position={[m.position.latitude, m.position.longitude]} icon={pinIcon(m)}>
+            {m.popup ? (
+              <Popup>
+                <PinPopup kind={m.kind}>{m.popup}</PinPopup>
+              </Popup>
+            ) : null}
+          </Marker>
+        ))}
+        {userPosition ? <UserDot position={userPosition} /> : null}
+      </MapContainer>
+    </div>
   );
 }

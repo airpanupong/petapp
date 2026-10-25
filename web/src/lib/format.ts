@@ -120,6 +120,10 @@ export function distanceLabel(km?: number | null) {
   return km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`;
 }
 
+export function viewsLabel(count?: number | null) {
+  return `${(count ?? 0).toLocaleString('th-TH')} วิว`;
+}
+
 /** Value for <input type="datetime-local"> in local time. */
 export function toLocalInput(date = new Date()) {
   const pad = (n: number) => String(n).padStart(2, '0');

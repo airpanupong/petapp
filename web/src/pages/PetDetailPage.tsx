@@ -24,7 +24,7 @@ import {toast} from '../store/toastStore';
 import {confirmAction} from '../store/confirmStore';
 import {CatLoader} from '../components/CatLoader';
 import {MediaImage} from '../components/MediaImage';
-import {Avatar, EmptyState, StatusBadge} from '../components/ui';
+import {Avatar, EmptyState, Optional, StatusBadge} from '../components/ui';
 
 type Tab = 'info' | 'health' | 'emergency' | 'guardians';
 
@@ -199,13 +199,13 @@ function HealthPanel({petId}: {petId: string}) {
         }}>
         <h3>ข้อมูลสุขภาพ</h3>
         <div className="form-row">
-          <label className="field"><span>แพ้</span><input className="input" value={form.allergies} onChange={e => setForm({...form, allergies: e.target.value})} /></label>
-          <label className="field"><span>ยาที่ทาน</span><input className="input" value={form.medications} onChange={e => setForm({...form, medications: e.target.value})} /></label>
+          <label className="field"><span>แพ้ <Optional /></span><input className="input" value={form.allergies} onChange={e => setForm({...form, allergies: e.target.value})} /></label>
+          <label className="field"><span>ยาที่ทาน <Optional /></span><input className="input" value={form.medications} onChange={e => setForm({...form, medications: e.target.value})} /></label>
         </div>
-        <label className="field"><span>โรคประจำตัว</span><input className="input" value={form.conditions} onChange={e => setForm({...form, conditions: e.target.value})} /></label>
+        <label className="field"><span>โรคประจำตัว <Optional /></span><input className="input" value={form.conditions} onChange={e => setForm({...form, conditions: e.target.value})} /></label>
         <div className="form-row">
-          <label className="field"><span>สัตวแพทย์ / คลินิก</span><input className="input" value={form.vet_name} onChange={e => setForm({...form, vet_name: e.target.value})} /></label>
-          <label className="field"><span>เบอร์คลินิก</span><input className="input" value={form.vet_phone} onChange={e => setForm({...form, vet_phone: e.target.value})} /></label>
+          <label className="field"><span>สัตวแพทย์ / คลินิก <Optional /></span><input className="input" value={form.vet_name} onChange={e => setForm({...form, vet_name: e.target.value})} /></label>
+          <label className="field"><span>เบอร์คลินิก <Optional /></span><input className="input" value={form.vet_phone} onChange={e => setForm({...form, vet_phone: e.target.value})} /></label>
         </div>
         <button className="btn btn-primary" disabled={save.isPending}>บันทึก</button>
       </form>
@@ -245,7 +245,7 @@ function HealthPanel({petId}: {petId: string}) {
           style={{alignItems: 'end'}}>
           <label className="field"><span>ชื่อวัคซีน</span><input className="input" required value={vac.name} onChange={e => setVac({...vac, name: e.target.value})} /></label>
           <label className="field"><span>วันที่ฉีด</span><input className="input" type="date" required value={vac.given_at} onChange={e => setVac({...vac, given_at: e.target.value})} /></label>
-          <label className="field"><span>ครั้งถัดไป</span><input className="input" type="date" value={vac.next_due_at} onChange={e => setVac({...vac, next_due_at: e.target.value})} /></label>
+          <label className="field"><span>ครั้งถัดไป <Optional /></span><input className="input" type="date" value={vac.next_due_at} onChange={e => setVac({...vac, next_due_at: e.target.value})} /></label>
           <button className="btn btn-mint" disabled={add.isPending}>+ เพิ่มวัคซีน</button>
         </form>
       </div>
@@ -301,14 +301,14 @@ function EmergencyPanel({petId}: {petId: string}) {
       }}>
       <h3>ข้อมูลฉุกเฉิน (แสดงบนหน้า QR)</h3>
       <div className="form-row">
-        <label className="field"><span>แพ้</span><input className="input" value={form.public_allergies} onChange={e => setForm({...form, public_allergies: e.target.value})} /></label>
-        <label className="field"><span>ยา</span><input className="input" value={form.public_medications} onChange={e => setForm({...form, public_medications: e.target.value})} /></label>
+        <label className="field"><span>แพ้ <Optional /></span><input className="input" value={form.public_allergies} onChange={e => setForm({...form, public_allergies: e.target.value})} /></label>
+        <label className="field"><span>ยา <Optional /></span><input className="input" value={form.public_medications} onChange={e => setForm({...form, public_medications: e.target.value})} /></label>
       </div>
-      <label className="field"><span>โรคประจำตัว</span><input className="input" value={form.public_conditions} onChange={e => setForm({...form, public_conditions: e.target.value})} /></label>
-      <label className="field"><span>ข้อความถึงผู้พบ</span><textarea className="textarea" value={form.emergency_note} onChange={e => setForm({...form, emergency_note: e.target.value})} /></label>
+      <label className="field"><span>โรคประจำตัว <Optional /></span><input className="input" value={form.public_conditions} onChange={e => setForm({...form, public_conditions: e.target.value})} /></label>
+      <label className="field"><span>ข้อความถึงผู้พบ <Optional /></span><textarea className="textarea" value={form.emergency_note} onChange={e => setForm({...form, emergency_note: e.target.value})} /></label>
       <div className="form-row">
-        <label className="field"><span>ชื่อผู้ติดต่อ</span><input className="input" value={form.emergency_contact_name} onChange={e => setForm({...form, emergency_contact_name: e.target.value})} /></label>
-        <label className="field"><span>เบอร์โทร</span><input className="input" value={form.emergency_contact_phone} onChange={e => setForm({...form, emergency_contact_phone: e.target.value})} /></label>
+        <label className="field"><span>ชื่อผู้ติดต่อ <Optional /></span><input className="input" value={form.emergency_contact_name} onChange={e => setForm({...form, emergency_contact_name: e.target.value})} /></label>
+        <label className="field"><span>เบอร์โทร <Optional /></span><input className="input" value={form.emergency_contact_phone} onChange={e => setForm({...form, emergency_contact_phone: e.target.value})} /></label>
       </div>
       <label className="check">
         <input type="checkbox" checked={form.show_contact_phone} onChange={e => setForm({...form, show_contact_phone: e.target.checked})} />

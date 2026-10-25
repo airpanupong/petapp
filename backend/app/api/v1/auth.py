@@ -17,18 +17,27 @@ from app.schemas.user import UserRead
 from app.services.auth_service import issue_token_pair, revoke_refresh_token, rotate_refresh_token
 from app.services.password_reset_service import request_reset_code, reset_password, verify_reset_code
 
+# Bump when the privacy policy or data-access terms change (matches web/src/pages/PrivacyPage.tsx).
+CONSENT_VERSION = "2026-09-30"
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", status_code=201)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    if not (payload.accept_privacy and payload.accept_data_access):
+        raise AppError(400, "CONSENT_REQUIRED", "กรุณายอมรับนโยบายความเป็นส่วนตัวและการเข้าถึงข้อมูลก่อนสมัคร")
     email = payload.email.lower().strip()
     if db.scalar(select(User).where(User.email == email)):
         raise AppError(409, "USER_EMAIL_EXISTS", "Email is already registered")
+    now = utcnow()
     user = User(
         email=email,
         password_hash=hash_password(payload.password),
         display_name=payload.display_name.strip(),
+        privacy_accepted_at=now,
+        data_access_accepted_at=now,
+        consent_version=CONSENT_VERSION,
     )
     db.add(user)
     db.commit()

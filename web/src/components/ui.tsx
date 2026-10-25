@@ -8,6 +8,7 @@ import {APP_VERSION} from '../lib/version';
 import {resolveMediaUrl} from '../api/uploads.api';
 import {SUPPORT_EMAIL, SUPPORT_LINE_ID, SUPPORT_LINE_KEYWORDS, SUPPORT_LINE_URL, lineKeywordUrl} from '../lib/config';
 import {initials, statusLabel, statusTone} from '../lib/format';
+import {isStaff, roleLabel} from '../lib/roles';
 import {CatWalk} from './CatLoader';
 
 export function BrandMark() {
@@ -157,6 +158,15 @@ export function EmptyState({title, description, action}: {
   );
 }
 
+export function Optional() {
+  return <span className="muted small field-optional">(ไม่บังคับ)</span>;
+}
+
+export function StaffBadge({role}: {role?: string | null}) {
+  if (!isStaff(role)) return null;
+  return <span className="badge tone-lavender staff-role">{roleLabel(role)}</span>;
+}
+
 export function Avatar({name, url, size}: {name?: string | null; url?: string | null; size?: 'lg'}) {
   const src = resolveMediaUrl(url);
   return (
@@ -215,7 +225,18 @@ export function Modal({open, onClose, title, children}: {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+
+    // iOS Safari: lock body scroll without jumping when the modal opens
+    const scrollY = window.scrollY;
+    document.body.classList.add('is-scroll-locked');
+    document.body.style.top = `-${scrollY}px`;
+
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.classList.remove('is-scroll-locked');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollY);
+    };
   }, [open, onClose]);
 
   if (!open) return null;

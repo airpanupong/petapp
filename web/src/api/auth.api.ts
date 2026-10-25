@@ -1,7 +1,13 @@
 import {api} from './client';
 import {ApiSuccess, AuthPayload, User} from '../types/api';
 
-export async function register(payload: {email: string; password: string; display_name: string}) {
+export async function register(payload: {
+  email: string;
+  password: string;
+  display_name: string;
+  accept_privacy: boolean;
+  accept_data_access: boolean;
+}) {
   const response = await api.post<ApiSuccess<AuthPayload>>('/auth/register', payload);
   return response.data.data;
 }

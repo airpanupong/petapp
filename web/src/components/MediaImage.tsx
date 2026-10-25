@@ -7,11 +7,14 @@ import {MediaPlaceholder} from './PetMascot';
 export function Lightbox({src, alt, onClose}: {src: string; alt: string; onClose: () => void}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const scrollY = window.scrollY;
+    document.body.classList.add('is-scroll-locked');
+    document.body.style.top = `-${scrollY}px`;
     window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = overflow;
+      document.body.classList.remove('is-scroll-locked');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollY);
       window.removeEventListener('keydown', onKey);
     };
   }, [onClose]);

@@ -11,6 +11,10 @@ export async function updateMe(payload: {
   return response.data.data;
 }
 
+export async function deleteMyAccount(password: string) {
+  await api.delete('/users/me', {data: {password}});
+}
+
 export async function getMyPosts() {
   const response = await api.get<ApiSuccess<{lost: LostPost[]; found: FoundPost[]}>>('/users/me/posts');
   return response.data.data;

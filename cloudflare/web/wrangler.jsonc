@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pethaii-web",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "routes": [
+    {"pattern": "pethaii.com", "custom_domain": true},
+    {"pattern": "www.pethaii.com", "custom_domain": true},
+    {"pattern": "cf.pethaii.com", "custom_domain": true}
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "none"
+  },
+  "observability": {"enabled": true}
+}

@@ -78,8 +78,8 @@ const CAT_BREEDS: PetOption[] = [
 const CAT_COLORS: PetOption[] = [
   {id: 'orange_tabby', th: 'สีส้ม / ส้มลายสลิด (แมวส้ม)', en: 'Orange / Red Tabby'},
   {id: 'grey_tabby', th: 'สีเทาลายสลิด / ลายเสือ', en: 'Grey Tabby / Classic Tabby'},
-  {id: 'white', th: 'สีขาวปลอด', en: 'Solid White'},
-  {id: 'black', th: 'สีดำปลอด', en: 'Solid Black'},
+  {id: 'white', th: 'สีขาว', en: 'Solid White', aliases: ['สีขาวปลอด']},
+  {id: 'black', th: 'สีดำ', en: 'Solid Black', aliases: ['สีดำปลอด']},
   {id: 'tuxedo', th: 'ขาว-ดำ (ทักซิโด้)', en: 'Bicolor / Tuxedo'},
   {id: 'white_orange', th: 'ขาว-ส้ม', en: 'White & Orange'},
   {id: 'calico', th: 'สามสี (ขาว ดำ ส้ม)', en: 'Calico (Tricolor)'},
@@ -107,7 +107,9 @@ export function petOptions(animal: string | null | undefined, attribute: PetAttr
 export function findPetOption(options: PetOption[], value: string) {
   const v = value.trim().toLowerCase();
   if (!v) return undefined;
-  return options.find(o => o.th.toLowerCase() === v || o.en.toLowerCase() === v || o.id === v);
+  return options.find(
+    o => o.th.toLowerCase() === v || o.en.toLowerCase() === v || o.id === v || o.aliases?.some(a => a.toLowerCase() === v),
+  );
 }
 
 /** Filter check: `filter` is an option id, `OTHER_OPTION` for typed-in values, or '' for anything. */

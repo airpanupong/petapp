@@ -12,7 +12,7 @@ import {ImagePicker} from '../components/ImagePicker';
 import {CatLoader} from '../components/CatLoader';
 import {AnimalOption} from '../components/PetMascot';
 import {PetAttributeField} from '../components/PetAttributeField';
-import {PageTitle} from '../components/ui';
+import {Optional, PageTitle} from '../components/ui';
 
 type Form = {
   name: string;
@@ -127,7 +127,7 @@ export default function PetFormPage() {
         <div className="card form">
           <div className="form-row">
             <label className="field">
-              <span>ชื่อน้อง *</span>
+              <span>ชื่อน้อง</span>
               <input className="input" value={form.name} onChange={e => set('name', e.target.value)} required />
             </label>
             <div className="field">
@@ -147,12 +147,13 @@ export default function PetFormPage() {
               animal={form.animal_type}
               attribute="breed"
               label="สายพันธุ์"
+              optional
               value={form.breed}
               onChange={setBreed}
               freePlaceholder="เช่น กระต่ายฮอลแลนด์ลอป"
             />
             <label className="field">
-              <span>เพศ</span>
+              <span>เพศ <Optional /></span>
               <select className="select" value={form.gender} onChange={e => set('gender', e.target.value)}>
                 <option value="">ไม่ระบุ</option>
                 <option value="male">ผู้</option>
@@ -161,9 +162,9 @@ export default function PetFormPage() {
             </label>
           </div>
           <div className="form-row">
-            <PetAttributeField key={`${form.animal_type}-color`} animal={form.animal_type} attribute="color" label="สี" value={form.color} onChange={setColor} />
+            <PetAttributeField key={`${form.animal_type}-color`} animal={form.animal_type} attribute="color" label="สี" value={form.color} onChange={setColor} optional />
             <label className="field">
-              <span>น้ำหนัก (กก.)</span>
+              <span>น้ำหนัก (กก.) <Optional /></span>
               <input
                 className="input"
                 type="text"
@@ -179,29 +180,29 @@ export default function PetFormPage() {
           </div>
           <div className="form-row">
             <label className="field">
-              <span>วันเกิด</span>
+              <span>วันเกิด <Optional /></span>
               <input className="input" type="date" value={form.birth_date} onChange={e => set('birth_date', e.target.value)} />
             </label>
             <label className="field">
-              <span>Microchip ID</span>
+              <span>Microchip ID <Optional /></span>
               <input className="input" value={form.microchip_id} onChange={e => set('microchip_id', e.target.value)} />
             </label>
           </div>
           <label className="field">
-            <span>ลักษณะนิสัย / รายละเอียด</span>
+            <span>ลักษณะนิสัย / รายละเอียด <Optional /></span>
             <textarea className="textarea" value={form.description} onChange={e => set('description', e.target.value)} />
           </label>
           <label className="field">
-            <span>ตำหนิ / จุดสังเกต</span>
+            <span>ตำหนิ / จุดสังเกต <Optional /></span>
             <input className="input" value={form.distinctive_marks} onChange={e => set('distinctive_marks', e.target.value)} placeholder="เช่น หูซ้ายพับ หางกุด" />
           </label>
           <label className="field">
-            <span>หมายเหตุฉุกเฉิน (แสดงบนหน้า QR)</span>
+            <span>หมายเหตุฉุกเฉิน (แสดงบนหน้า QR) <Optional /></span>
             <input className="input" value={form.emergency_note} onChange={e => set('emergency_note', e.target.value)} placeholder="เช่น แพ้ไก่ ต้องทานยาทุกเช้า" />
           </label>
         </div>
         <div className="card form split-sticky">
-          <ImagePicker value={photo} existingUrl={pet.data?.profile_image_url} onChange={setPhoto} label="รูปโปรไฟล์น้อง" height={260} />
+          <ImagePicker value={photo} existingUrl={pet.data?.profile_image_url} onChange={setPhoto} label="รูปโปรไฟล์น้อง (ไม่บังคับ)" height={260} />
           <label className="check">
             <input type="checkbox" checked={form.is_public} onChange={e => set('is_public', e.target.checked)} />
             เปิดหน้า Pet ID สาธารณะ (ให้คนสแกน QR เห็น)

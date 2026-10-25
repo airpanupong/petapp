@@ -1,11 +1,13 @@
+import {useEffect} from 'react';
 import {NavLink, Outlet, useLocation, useNavigate} from 'react-router-dom';
-import {useQuery} from '@tanstack/react-query';
-import {Bell, Home, LogIn, MapPinned, MessageCircle, PawPrint, Plus, RefreshCw, Shield, User} from 'lucide-react';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {Bell, BookmarkCheck, Home, LogIn, MapPinned, MessageCircle, PawPrint, Plus, RefreshCw, Shield, User} from 'lucide-react';
 
 import {useAuthStore} from '../store/authStore';
 import {getUnreadNotificationCount} from '../api/features.api';
 import {getUnreadChatCount} from '../api/chat.api';
 import {isStaff} from '../lib/roles';
+import {startChatInbox} from '../lib/chatInbox';
 import {Avatar, BrandMark, ContactUs} from './ui';
 import {LogoutButton} from './LogoutButton';
 import {useUpdateAvailable} from '../lib/version';
@@ -36,21 +38,24 @@ export function AppShell() {
   const updateAvailable = useUpdateAvailable();
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
+  useEffect(() => (authed ? startChatInbox(qc) : undefined), [authed, qc]);
   const notificationUnread = useQuery({
     queryKey: ['notifications', 'unread'],
     queryFn: getUnreadNotificationCount,
-    refetchInterval: 60_000,
+    staleTime: Infinity,
     enabled: authed,
   });
   const chatUnread = useQuery({
     queryKey: ['chat-unread'],
     queryFn: getUnreadChatCount,
-    refetchInterval: 20_000,
-    refetchOnWindowFocus: true,
+    staleTime: Infinity,
     enabled: authed,
   });
   const unread = authed ? notificationUnread.data ?? 0 : 0;
   const unreadChats = authed ? chatUnread.data ?? 0 : 0;
+  const staff = isStaff(user?.role);
+  const reportTo = staff ? '/admin/intake' : '/report';
   const goAuth = (to: '/login' | '/register') => navigate(to, {state: {from: location.pathname + location.search}});
 
   return (
@@ -65,6 +70,10 @@ export function AppShell() {
               {t.label}
             </NavLink>
           ))}
+          <NavLink to="/following" className={({isActive}) => `side-link ${isActive ? 'active' : ''}`}>
+            <BookmarkCheck size={20} />
+            เคสที่ติดตาม
+          </NavLink>
           <NavLink to="/chat" className={({isActive}) => `side-link ${isActive ? 'active' : ''}`}>
             <MessageCircle size={20} />
             แชท
@@ -75,15 +84,15 @@ export function AppShell() {
             แจ้งเตือน
             {unread ? <span className="count">{unread}</span> : null}
           </NavLink>
-          {isStaff(user?.role) ? (
+          {staff ? (
             <NavLink to="/admin" className={({isActive}) => `side-link ${isActive ? 'active' : ''}`}>
               <Shield size={20} />
               ผู้ดูแลระบบ
             </NavLink>
           ) : null}
         </nav>
-        <button className="btn btn-primary side-cta" onClick={() => navigate('/report')}>
-          <Plus size={18} /> แจ้งสัตว์หาย / พบสัตว์
+        <button className="btn btn-primary side-cta" onClick={() => navigate(reportTo)}>
+          <Plus size={18} /> {staff ? 'เพิ่มประกาศของแอดมิน' : 'แจ้งสัตว์หาย / พบสัตว์'}
         </button>
         {authed ? (
           <div className="side-user">
@@ -114,6 +123,9 @@ export function AppShell() {
         <div className="topbar-actions">
           {authed ? (
             <>
+              <button className="icon-btn" onClick={() => navigate('/following')} aria-label="เคสที่ติดตาม" title="เคสที่ติดตาม">
+                <BookmarkCheck size={19} />
+              </button>
               <button className="icon-btn" onClick={() => navigate('/chat')} aria-label={unreadChats ? `แชท ยังไม่อ่าน ${unreadChats}` : 'แชท'}>
                 <MessageCircle size={19} />
                 {unreadChats ? <span className="count-badge">{unreadChats > 99 ? '99+' : unreadChats}</span> : null}
@@ -146,13 +158,13 @@ export function AppShell() {
         {TABS.map(t => (
           <NavLink
             key={t.to}
-            to={t.to}
+            to={t.center ? reportTo : t.to}
             end={t.end}
             className={({isActive}) => `tab ${t.center ? 'tab-center' : ''} ${isActive ? 'active' : ''}`}>
             <span className="tab-icon">
               <t.icon size={t.center ? 26 : 21} strokeWidth={t.center ? 2.6 : 2} />
             </span>
-            <span className="tab-label">{t.label}</span>
+            <span className="tab-label">{t.center && staff ? 'เพิ่มประกาศ' : t.label}</span>
           </NavLink>
         ))}
       </nav>

@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 
+import {Optional} from './ui';
 import {findPetOption, OTHER_OPTION, PetAttribute, petOptions} from '../lib/petOptions';
 
 const PLACEHOLDER: Record<PetAttribute, string> = {
@@ -16,6 +17,7 @@ export function PetAttributeField({
   onChange,
   emptyLabel = 'ไม่ระบุ',
   freePlaceholder,
+  optional,
 }: {
   animal: string;
   attribute: PetAttribute;
@@ -24,7 +26,9 @@ export function PetAttributeField({
   onChange: (value: string) => void;
   emptyLabel?: string;
   freePlaceholder?: string;
+  optional?: boolean;
 }) {
+  const caption = <span>{label}{optional ? <> <Optional /></> : null}</span>;
   const options = petOptions(animal, attribute);
   const matched = options ? findPetOption(options, value) : undefined;
   const [typing, setTyping] = useState(() => !!value.trim() && !matched);
@@ -38,7 +42,7 @@ export function PetAttributeField({
   if (!options) {
     return (
       <label className="field">
-        <span>{label}</span>
+        {caption}
         <input className="input" value={value} onChange={e => onChange(e.target.value)} placeholder={freePlaceholder} maxLength={120} />
       </label>
     );
@@ -47,7 +51,7 @@ export function PetAttributeField({
   const selected = matched ? matched.id : typing ? OTHER_OPTION : '';
   return (
     <div className="field">
-      <span>{label}</span>
+      {caption}
       <select
         className="select"
         aria-label={label}

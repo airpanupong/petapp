@@ -1,0 +1,27 @@
+{
+  "name": "pethaii-api-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "node migrate/deploy.mjs",
+    "types": "wrangler types --strict-vars=false",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "test:contract": "node test/contract.mjs",
+    "migrate:rehearse": "node migrate/run.mjs",
+    "migrate:remote": "node migrate/run.mjs --target remote --replace"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.0.0",
+    "@resvg/resvg-wasm": "^2.6.2",
+    "hono": "^4.9.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "wrangler": "^4.146.0"
+  }
+}

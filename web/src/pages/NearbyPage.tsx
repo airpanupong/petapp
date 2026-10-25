@@ -1,13 +1,15 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Link} from 'react-router-dom';
-import {useQuery} from '@tanstack/react-query';
-import {Eye, HeartHandshake, List, Map as MapIcon, LocateFixed, Siren} from 'lucide-react';
+import {useInfiniteQuery, useQuery} from '@tanstack/react-query';
+import {Eye, Globe2, HeartHandshake, List, Map as MapIcon, LocateFixed, Siren} from 'lucide-react';
 
-import {getNearby} from '../api/community.api';
+import {FeedItem, getFeed, getNearby} from '../api/community.api';
 import {Coords, useUserPosition} from '../lib/geo';
 import {DEFAULT_CENTER} from '../lib/config';
+import {LOCAL_RETURN_ZOOM, WORLD_FLY_ZOOM, WORLD_VIEW_ZOOM} from '../lib/mapImagery';
 import {animalLabel, distanceLabel, timeAgo} from '../lib/format';
-import {MapView, MapMarker} from '../components/MapView';
+import type {MapMarker} from '../components/MapView';
+import {NearbyMap} from '../components/NearbyMap';
 import {CatLoader} from '../components/CatLoader';
 import {FoundCard, LostCard} from '../components/PostCards';
 import {AnimalOption} from '../components/PetMascot';
@@ -15,6 +17,7 @@ import {EmptyState, PageTitle} from '../components/ui';
 import {LocationNotice} from '../components/PermissionHints';
 import {BreedColorFilter} from '../components/BreedColorFilter';
 import {matchesPetOption} from '../lib/petOptions';
+import {NearbyPetItem, NearbyPetRail} from '../components/NearbyPetRail';
 
 const RADII = [1, 3, 5, 10, 20];
 const ANIMALS = ['', 'dog', 'cat', 'other'];
@@ -25,10 +28,19 @@ const TYPES = [
   {value: 'sighting', label: 'เบาะแส', icon: Eye},
 ] as const;
 
+function localZoomForRadius(km: number) {
+  return km > 10 ? 11 : km > 3 ? 13 : 14;
+}
+
+function adminTitle(title: string, createdByAdmin?: boolean) {
+  return createdByAdmin ? `${title} · เพิ่มโดยแอดมิน` : title;
+}
+
 export default function NearbyPage() {
   const geo = useUserPosition();
   const [coords, setCoords] = useState<Coords | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
+  const [mapZoom, setMapZoom] = useState(14);
   const [radius, setRadius] = useState(5);
   const [animal, setAnimal] = useState('');
   const [breed, setBreed] = useState('');
@@ -40,6 +52,9 @@ export default function NearbyPage() {
   };
   const [postType, setPostType] = useState<'' | 'lost' | 'found' | 'sighting'>('');
   const [view, setView] = useState<'map' | 'list'>('map');
+  /** Same MapLibre instance — low zoom = globe, high zoom = street. */
+  const [worldMode, setWorldMode] = useState(false);
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
 
   const usingFallback = useRef(false);
   useEffect(() => {
@@ -47,20 +62,48 @@ export default function NearbyPage() {
       usingFallback.current = false;
       setCoords({latitude: geo.position.latitude, longitude: geo.position.longitude});
       setRecenterKey(k => k + 1);
-    } else if (!coords && (geo.status === 'denied' || geo.status === 'unavailable' || geo.status === 'unsupported')) {
+    } else if (!coords) {
       usingFallback.current = true;
       setCoords(DEFAULT_CENTER);
     }
   }, [coords, geo.position, geo.status]);
 
+  const enterLocal = useCallback(
+    (nextRadius?: number) => {
+      const r = nextRadius ?? radius;
+      setWorldMode(false);
+      setMapZoom(localZoomForRadius(r));
+      setRecenterKey(k => k + 1);
+    },
+    [radius],
+  );
+
+  const enterWorld = useCallback(() => {
+    setWorldMode(true);
+    setMapZoom(WORLD_FLY_ZOOM);
+    setView('map');
+    setRecenterKey(k => k + 1);
+  }, []);
+
+  const leaveWorld = useCallback(() => {
+    setWorldMode(false);
+    setMapZoom(LOCAL_RETURN_ZOOM);
+    setRecenterKey(k => k + 1);
+  }, []);
+
   const locate = () => {
     if (geo.position) {
       setCoords({latitude: geo.position.latitude, longitude: geo.position.longitude});
-      setRecenterKey(k => k + 1);
+      enterLocal();
     } else {
       geo.request();
     }
   };
+
+  const onWorldModeChange = useCallback((world: boolean, zoom: number) => {
+    setWorldMode(world);
+    setMapZoom(zoom);
+  }, []);
 
   const center = coords ?? DEFAULT_CENTER;
   const nearby = useQuery({
@@ -76,6 +119,31 @@ export default function NearbyPage() {
     enabled: !!coords,
   });
 
+  const feedKind = postType === 'lost' || postType === 'found' ? postType : 'all';
+
+  const systemFeed = useInfiniteQuery({
+    queryKey: ['system-pets', feedKind, animal, breed, color],
+    queryFn: ({pageParam}) =>
+      getFeed({
+        kind: feedKind,
+        animal_type: animal || undefined,
+        breed: breed || undefined,
+        color: color || undefined,
+        cursor: pageParam,
+        limit: 30,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: last => last.next_cursor ?? undefined,
+    enabled: !!coords,
+    staleTime: 60_000,
+  });
+
+  const feedItems = useMemo(() => systemFeed.data?.pages.flatMap(p => p.items) ?? [], [systemFeed.data]);
+
+  const loadMorePets = useCallback(() => {
+    if (systemFeed.hasNextPage && !systemFeed.isFetchingNextPage) void systemFeed.fetchNextPage();
+  }, [systemFeed]);
+
   const lost = useMemo(
     () =>
       (nearby.data?.lost ?? []).filter(
@@ -90,10 +158,9 @@ export default function NearbyPage() {
       ),
     [nearby.data, breed, color],
   );
-  // Sightings carry no breed or color, so they drop out once either filter is set.
   const sightings = useMemo(() => (breed || color ? [] : nearby.data?.sightings ?? []), [nearby.data, breed, color]);
 
-  const markers = useMemo<MapMarker[]>(() => {
+  const localMarkers = useMemo<MapMarker[]>(() => {
     const list: MapMarker[] = [];
     lost.forEach(p =>
       list.push({
@@ -101,13 +168,8 @@ export default function NearbyPage() {
         position: p,
         kind: 'lost',
         animal: p.pet?.animal_type,
-        popup: (
-          <Link to={`/lost/${p.id}`}>
-            <b>{p.pet?.name ?? p.title}</b>
-            <br />
-            {p.location_text} · {timeAgo(p.lost_at)}
-          </Link>
-        ),
+        title: adminTitle(p.pet?.name ?? p.title, p.created_by_admin),
+        href: `/lost/${p.id}`,
       }),
     );
     found.forEach(p =>
@@ -116,13 +178,8 @@ export default function NearbyPage() {
         position: p,
         kind: 'found',
         animal: p.animal_type,
-        popup: (
-          <Link to={`/found/${p.id}`}>
-            <b>พบ{animalLabel(p.animal_type)}</b>
-            <br />
-            {p.location_text} · {timeAgo(p.found_at)}
-          </Link>
-        ),
+        title: adminTitle(`พบ${animalLabel(p.animal_type)}`, p.created_by_admin),
+        href: `/found/${p.id}`,
       }),
     );
     sightings.forEach(s =>
@@ -131,25 +188,110 @@ export default function NearbyPage() {
         position: s,
         kind: 'sighting',
         icon: 'eye',
-        popup: (
-          <Link to={`/lost/${s.lost_post_id}`}>
-            <b>{s.pet_name ? `พบเห็น ${s.pet_name}` : 'มีคนพบเห็น'}</b>
-            <br />
-            {s.location_text} · {timeAgo(s.seen_at)}
-          </Link>
-        ),
+        title: s.pet_name ? `พบเห็น ${s.pet_name}` : 'มีคนพบเห็น',
+        href: `/lost/${s.lost_post_id}`,
       }),
     );
     return list;
-  }, [center, lost, found, sightings]);
+  }, [lost, found, sightings]);
+
+  const feedToMarkers = useCallback((items: FeedItem[]): MapMarker[] => {
+    const out: MapMarker[] = [];
+    for (const item of items) {
+      if (item.kind === 'lost') {
+        const p = item.post;
+        out.push({
+          id: `gl-${p.id}`,
+          position: p,
+          kind: 'lost',
+          animal: p.pet?.animal_type,
+          title: adminTitle(p.pet?.name ?? p.title, p.created_by_admin),
+          href: `/lost/${p.id}`,
+        });
+      } else {
+        const p = item.post;
+        out.push({
+          id: `gf-${p.id}`,
+          position: p,
+          kind: 'found',
+          animal: p.animal_type,
+          title: adminTitle(`พบ${animalLabel(p.animal_type)}`, p.created_by_admin),
+          href: `/found/${p.id}`,
+        });
+      }
+    }
+    return out;
+  }, []);
+
+  const worldMarkers = useMemo(() => feedToMarkers(feedItems.slice(0, 120)), [feedItems, feedToMarkers]);
+  const activeMarkers = worldMode ? (worldMarkers.length ? worldMarkers : localMarkers) : localMarkers;
 
   const total = lost.length + found.length + sightings.length;
+  const myPosition = geo.position ?? null;
+
+  const railItems = useMemo<NearbyPetItem[]>(() => {
+    const items: NearbyPetItem[] = [];
+    if (myPosition) {
+      items.push({
+        id: 'me',
+        name: 'ฉัน',
+        kind: 'me',
+        subtitle: 'ตำแหน่งของคุณ',
+        latitude: myPosition.latitude,
+        longitude: myPosition.longitude,
+      });
+    }
+    for (const item of feedItems) {
+      if (item.kind === 'lost') {
+        const p = item.post;
+        items.push({
+          id: `gl-${p.id}`,
+          name: p.pet?.name ?? p.title,
+          kind: 'lost',
+          subtitle: p.location_text || undefined,
+          imageUrl: p.image_url || p.pet?.profile_image_url,
+          animal: p.pet?.animal_type,
+          href: `/lost/${p.id}`,
+          latitude: p.latitude,
+          longitude: p.longitude,
+        });
+      } else {
+        const p = item.post;
+        items.push({
+          id: `gf-${p.id}`,
+          name: `พบ${animalLabel(p.animal_type)}`,
+          kind: 'found',
+          subtitle: p.location_text || undefined,
+          imageUrl: p.image_url,
+          animal: p.animal_type,
+          href: `/found/${p.id}`,
+          latitude: p.latitude,
+          longitude: p.longitude,
+        });
+      }
+    }
+    return items;
+  }, [myPosition, feedItems]);
+
+  const focusPet = useCallback((item: NearbyPetItem) => {
+    setSelectedPetId(item.id);
+    setCoords({latitude: item.latitude, longitude: item.longitude});
+    setWorldMode(false);
+    // Street-level target — map flyTo eases in gradually from current (often globe) zoom
+    setMapZoom(15);
+    setView('map');
+    setRecenterKey(k => k + 1);
+  }, []);
 
   return (
     <div className="page">
       <PageTitle
         title="ใกล้ฉัน"
-        subtitle={`ประกาศในรัศมี ${radius} กม. · ${total} รายการ`}
+        subtitle={
+          worldMode
+            ? `มุมมองโลก · ${activeMarkers.length} หมุดน้อง`
+            : `ประกาศในรัศมี ${radius} กม. · ${total} รายการ`
+        }
         action={
           <div className="segmented hide-tablet-up">
             <button className={view === 'map' ? 'active' : ''} onClick={() => setView('map')}>
@@ -165,12 +307,21 @@ export default function NearbyPage() {
       <div className="card" style={{display: 'flex', flexDirection: 'column', gap: 12}}>
         <div className="chips">
           {RADII.map(r => (
-            <button key={r} className={`chip ${radius === r ? 'active' : ''}`} onClick={() => setRadius(r)}>
+            <button
+              key={r}
+              className={`chip ${!worldMode && radius === r ? 'active' : ''}`}
+              onClick={() => {
+                setRadius(r);
+                enterLocal(r);
+              }}>
               {r} กม.
             </button>
           ))}
           <button className="chip" onClick={locate}>
             <LocateFixed size={13} style={{verticalAlign: -2}} /> ตำแหน่งฉัน
+          </button>
+          <button className={`chip ${worldMode ? 'active' : ''}`} onClick={() => (worldMode ? leaveWorld() : enterWorld())}>
+            <Globe2 size={13} style={{verticalAlign: -2}} /> {worldMode ? 'แผนที่ใกล้ๆ' : 'ดูโลก'}
           </button>
         </div>
         <div className="chips">
@@ -190,6 +341,11 @@ export default function NearbyPage() {
           ))}
         </div>
         <BreedColorFilter animal={animal} breed={breed} color={color} onBreedChange={setBreed} onColorChange={setColor} />
+        <p className="muted small">
+          {worldMode
+            ? 'แผนที่ตัวเดียว · มุมมองลูกโลก (ซูมเข้าเพื่อดูถนนใกล้ๆ)'
+            : 'แผนที่ตัวเดียว · ซูมออกต่อเนื่องจนเป็นลูกโลก'}
+        </p>
       </div>
 
       {geo.status !== 'granted' && coords ? <LocationNotice status={geo.status} onRetry={geo.request} /> : null}
@@ -199,7 +355,33 @@ export default function NearbyPage() {
       ) : (
         <div className="split">
           <div className={`split-sticky ${view === 'list' ? 'hide-below-tablet' : ''}`}>
-            <MapView center={center} zoom={radius > 10 ? 11 : radius > 3 ? 13 : 14} markers={markers} radiusKm={radius} userPosition={geo.position} recenterKey={recenterKey} className="map-tall" />
+            <div className={`map-stage ${worldMode ? 'is-space' : ''}`}>
+              <NearbyMap
+                center={center}
+                zoom={mapZoom}
+                markers={activeMarkers}
+                radiusKm={radius}
+                userPosition={myPosition}
+                recenterKey={recenterKey}
+                className="map-tall"
+                worldMode={worldMode}
+                onWorldModeChange={onWorldModeChange}
+                worldZoomThreshold={WORLD_VIEW_ZOOM}
+              />
+              {!worldMode ? <p className="map-zoom-hint hide-tablet-up">ซูมออกเพื่อดูลูกโลก</p> : null}
+              {view === 'map' ? (
+                <NearbyPetRail
+                  items={railItems}
+                  selectedId={selectedPetId}
+                  onSelect={focusPet}
+                  onLocate={locate}
+                  loading={systemFeed.isLoading}
+                  hasMore={!!systemFeed.hasNextPage}
+                  loadingMore={systemFeed.isFetchingNextPage}
+                  onLoadMore={loadMorePets}
+                />
+              ) : null}
+            </div>
           </div>
           <div className={`list ${view === 'map' ? 'hide-below-tablet' : ''}`}>
             {nearby.isLoading ? (
@@ -216,7 +398,9 @@ export default function NearbyPage() {
                 ))}
                 {sightings.map(s => (
                   <Link key={s.id} to={`/lost/${s.lost_post_id}`} className="list-item">
-                    <div className="quick-icon tone-butter"><Eye size={20} /></div>
+                    <div className="quick-icon tone-butter">
+                      <Eye size={20} />
+                    </div>
                     <div className="grow">
                       <b>เบาะแส {s.pet_name ?? ''}</b>
                       <p>

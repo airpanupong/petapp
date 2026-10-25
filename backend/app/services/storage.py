@@ -119,6 +119,29 @@ class ObjectStorage:
             return f"{base}/api/v1/uploads/files/{filename}"
         return f"/api/v1/uploads/files/{filename}"
 
+    def delete_url(self, url: str | None) -> None:
+        """Best-effort removal of a file this storage produced; foreign URLs are ignored."""
+        if not url:
+            return
+        try:
+            if self.use_s3:
+                assert self._client is not None
+                marker = f"/{self.bucket}/"
+                if self.public_base and url.startswith(self.public_base + "/"):
+                    key = url[len(self.public_base) + 1 :]
+                elif marker in url:
+                    key = url.split(marker, 1)[1]
+                else:
+                    return
+                self._client.delete_object(Bucket=self.bucket, Key=key)
+                return
+            if "/uploads/files/" not in url:
+                return
+            path = LOCAL_UPLOAD_DIR / Path(url.split("/uploads/files/", 1)[1]).name
+            path.unlink(missing_ok=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not delete %s: %s", url, exc)
+
     def local_path(self, filename: str) -> Path | None:
         if self.use_s3:
             return None

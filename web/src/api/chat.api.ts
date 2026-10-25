@@ -1,13 +1,20 @@
 import {api} from './client';
 import {ApiSuccess} from '../types/api';
 
+export type ChatMember = {
+  id: string;
+  display_name: string;
+  avatar_url?: string | null;
+  role?: string | null;
+};
+
 export type Conversation = {
   id: string;
   type: string;
   reference_id?: string | null;
   created_at: string;
-  members?: {id: string; display_name: string; avatar_url?: string | null}[];
-  other_member?: {id: string; display_name: string; avatar_url?: string | null} | null;
+  members?: ChatMember[];
+  other_member?: ChatMember | null;
   last_message?: ChatMessage | null;
   unread_count?: number;
   context?: ConversationContext | null;

@@ -2,8 +2,9 @@ import {create} from 'zustand';
 
 import * as authApi from '../api/auth.api';
 import {setSessionExpiredHandler} from '../api/client';
+import {deleteMyAccount} from '../api/users.api';
 import {clearSession, loadSession, saveSession} from '../lib/session';
-import {detachPushSubscription} from '../lib/push';
+import {detachPushSubscription, unsubscribeLocalPush} from '../lib/push';
 import {AuthPayload, User} from '../types/api';
 
 export type AuthState = {
@@ -11,8 +12,9 @@ export type AuthState = {
   user: User | null;
   bootstrap: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (displayName: string, email: string, password: string) => Promise<void>;
+  register: (displayName: string, email: string, password: string, consent: {privacy: boolean; dataAccess: boolean}) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
   signIn: (data: AuthPayload) => Promise<void>;
   setUser: (user: User) => void;
 };
@@ -43,8 +45,14 @@ export const useAuthStore = create<AuthState>(set => ({
     set({status: 'authenticated', user: data.user});
   },
 
-  register: async (displayName, email, password) => {
-    const data = await authApi.register({display_name: displayName, email, password});
+  register: async (displayName, email, password, consent) => {
+    const data = await authApi.register({
+      display_name: displayName,
+      email,
+      password,
+      accept_privacy: consent.privacy,
+      accept_data_access: consent.dataAccess,
+    });
     await saveSession({accessToken: data.access_token, refreshToken: data.refresh_token});
     set({status: 'authenticated', user: data.user});
   },
@@ -65,6 +73,13 @@ export const useAuthStore = create<AuthState>(set => ({
       await clearSession();
       set({status: 'guest', user: null});
     }
+  },
+
+  deleteAccount: async password => {
+    await deleteMyAccount(password);
+    await unsubscribeLocalPush().catch(() => undefined);
+    await clearSession();
+    set({status: 'guest', user: null});
   },
 
   setUser: user => set({user}),

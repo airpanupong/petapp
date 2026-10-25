@@ -1,3 +1,8 @@
+import json
+
+import pytest
+from starlette.websockets import WebSocketDisconnect
+
 from app.api.v1 import chat
 from tests.test_api import register
 from tests.test_super_admin import bearer
@@ -64,6 +69,66 @@ def test_new_message_notifies_recipient_once_per_conversation(client):
     chat._last_viewed.clear()
     send("ยังอยู่ไหม")
     assert [n["is_read"] for n in _chat_notifications(client, bob)].count(False) == 1
+
+
+def test_inbox_socket_pushes_messages_unread_and_read_receipts(client):
+    chat._last_viewed.clear()
+    alice = register(client, "alice-inbox@example.com")
+    bob = register(client, "bob-inbox@example.com")
+    conv_id = client.post(
+        f"{API}/conversations", headers=bearer(alice), json={"member_user_id": bob["user"]["id"]}
+    ).json()["data"]["id"]
+
+    with client.websocket_connect(f"{API}/conversations/inbox?token={bob['access_token']}") as bob_ws, \
+            client.websocket_connect(f"{API}/conversations/inbox?token={alice['access_token']}") as alice_ws:
+        assert bob_ws.receive_json() == {"type": "unread", "unread_count": 0}
+        assert alice_ws.receive_json() == {"type": "unread", "unread_count": 0}
+
+        client.post(f"{API}/conversations/{conv_id}/messages", headers=bearer(alice), json={"content": "hi"})
+        pushed = bob_ws.receive_json()
+        assert pushed["type"] == "message" and pushed["conversation_id"] == conv_id
+        assert pushed["message"]["content"] == "hi"
+        assert pushed["unread_count"] == 1 and pushed["conversation_unread"] == 1
+        assert alice_ws.receive_json()["unread_count"] == 0
+
+        client.get(f"{API}/conversations/{conv_id}/messages", headers=bearer(bob))
+        assert bob_ws.receive_json() == {
+            "type": "unread", "unread_count": 0, "conversation_id": conv_id, "conversation_unread": 0,
+        }
+        receipt = alice_ws.receive_json()
+        assert receipt["type"] == "read" and receipt["reader_id"] == bob["user"]["id"]
+
+
+def test_inbox_view_suppresses_chat_alert(client):
+    chat._last_viewed.clear()
+    alice = register(client, "alice-view@example.com")
+    bob = register(client, "bob-view@example.com")
+    conv_id = client.post(
+        f"{API}/conversations", headers=bearer(alice), json={"member_user_id": bob["user"]["id"]}
+    ).json()["data"]["id"]
+
+    with client.websocket_connect(f"{API}/conversations/inbox?token={bob['access_token']}") as bob_ws:
+        bob_ws.receive_json()
+        bob_ws.send_text(json.dumps({"type": "view", "conversation_id": conv_id}))
+        bob_ws.send_text("ping")
+        assert bob_ws.receive_text() == "pong"
+        client.post(f"{API}/conversations/{conv_id}/messages", headers=bearer(alice), json={"content": "อยู่ไหม"})
+        bob_ws.receive_json()
+    assert not _chat_notifications(client, bob)
+
+
+def test_inbox_rejects_bad_token(client):
+    with pytest.raises(WebSocketDisconnect) as closed:
+        with client.websocket_connect(f"{API}/conversations/inbox?token=nope") as ws:
+            ws.receive_json()
+    assert closed.value.code == 4401
+
+
+def test_conversation_members_include_role(client):
+    alice = register(client, "alice-role@example.com")
+    bob = register(client, "bob-role@example.com")
+    conv = client.post(f"{API}/conversations", headers=bearer(alice), json={"member_user_id": bob["user"]["id"]})
+    assert conv.json()["data"]["other_member"]["role"] == "user"
 
 
 def test_user_can_delete_own_notifications(client):

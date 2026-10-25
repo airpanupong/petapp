@@ -15,6 +15,7 @@ export function MultiImagePicker({
   label = 'แนบรูป',
   coverLabel,
   large,
+  required,
 }: {
   value: File[];
   onChange: (files: File[]) => void;
@@ -26,6 +27,7 @@ export function MultiImagePicker({
   coverLabel?: string;
   /** Three equal tiles across the form instead of small thumbnails. */
   large?: boolean;
+  required?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function MultiImagePicker({
   return (
     <div className="field">
       <span>
-        {label} <span className="muted small">(ไม่บังคับ · สูงสุด {max} รูป)</span>
+        {label} <span className="muted small">({required ? 'อย่างน้อย 1' : 'ไม่บังคับ'} · สูงสุด {max} รูป)</span>
       </span>
       <div className={`multi-pick ${large ? 'multi-pick-lg' : ''}`}>
         {existing.map((url, i) => {

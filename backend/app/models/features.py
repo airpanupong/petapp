@@ -116,7 +116,9 @@ class LostCaseFollower(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
     lost_post_id: Mapped[str] = mapped_column(String(36), ForeignKey("lost_posts.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now(), nullable=False
+    )
 
 
 class DeviceToken(Base):

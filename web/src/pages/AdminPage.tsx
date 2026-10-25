@@ -1,17 +1,14 @@
-import {useDeferredValue, useState} from 'react';
-import {Navigate} from 'react-router-dom';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {Ban, Eye, EyeOff, Flag, HeartHandshake, Search, ShieldCheck, Siren, UserCheck, Users} from 'lucide-react';
+import {useDeferredValue, useEffect, useState} from 'react';
+import {Link, Navigate} from 'react-router-dom';
+import {keepPreviousData, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {Ban, ChevronLeft, ChevronRight, Flag, HeartHandshake, ImageOff, Search, ShieldCheck, Siren, UserCheck, Users} from 'lucide-react';
 
 import {
-  adminCloseFound,
-  adminCloseLost,
-  adminSetPostHidden,
+  listImageFlags,
+  reviewImageFlag,
   adminSetUserBlocked,
   adminSetUserRole,
   getAdminMetrics,
-  listAdminFoundPosts,
-  listAdminLostPosts,
   listAdminOwnership,
   listAdminReports,
   listAdminUsers,
@@ -22,12 +19,19 @@ import {getApiErrorMessage} from '../api/client';
 import {useAuthStore} from '../store/authStore';
 import {toast} from '../store/toastStore';
 import {ConfirmOptions, confirmAction} from '../store/confirmStore';
-import {animalLabel, timeAgo} from '../lib/format';
+import {timeAgo} from '../lib/format';
 import {isStaff, isSuperAdmin, roleLabel} from '../lib/roles';
 import {CatLoader} from '../components/CatLoader';
+import {AdminPostHistory} from '../components/AdminPostHistory';
 import {Avatar, PageTitle, SectionTitle, StatusBadge} from '../components/ui';
 
-const VISIBLE_POST_STATUSES = ['active', 'hidden'];
+const IMAGE_REASON: Record<string, string> = {
+  sexual: 'เนื้อหาไม่เหมาะสม',
+  no_animal: 'ไม่พบสัตว์ในรูป',
+  gore: 'ภาพบาดเจ็บ/รุนแรง',
+  ai_error: 'ตรวจไม่สำเร็จ',
+};
+const USERS_PER_PAGE = 20;
 
 export default function AdminPage() {
   const user = useAuthStore(s => s.user);
@@ -40,13 +44,18 @@ export default function AdminPage() {
   const metrics = useQuery({queryKey: ['admin-metrics'], queryFn: getAdminMetrics, enabled: isAdmin});
   const reports = useQuery({queryKey: ['admin-reports'], queryFn: () => listAdminReports('open'), enabled: isAdmin});
   const ownership = useQuery({queryKey: ['admin-ownership'], queryFn: listAdminOwnership, enabled: isAdmin});
-  const lost = useQuery({queryKey: ['admin-lost'], queryFn: listAdminLostPosts, enabled: isAdmin});
-  const found = useQuery({queryKey: ['admin-found'], queryFn: listAdminFoundPosts, enabled: isAdmin});
+  const imageFlags = useQuery({queryKey: ['admin-image-flags'], queryFn: listImageFlags, enabled: isAdmin});
+  const [userPage, setUserPage] = useState(1);
   const users = useQuery({
-    queryKey: ['admin-users', deferredQuery],
-    queryFn: () => listAdminUsers(deferredQuery || undefined),
+    queryKey: ['admin-users', deferredQuery, userPage],
+    queryFn: () => listAdminUsers({q: deferredQuery, page: userPage, pageSize: USERS_PER_PAGE}),
+    placeholderData: keepPreviousData,
     enabled: isAdmin,
   });
+  const userPages = Math.max(1, Math.ceil((users.data?.total ?? 0) / USERS_PER_PAGE));
+  useEffect(() => {
+    if (userPage > userPages) setUserPage(userPages);
+  }, [userPage, userPages]);
 
   const refresh = () => void qc.invalidateQueries({predicate: q => String(q.queryKey[0]).startsWith('admin-')});
   const onError = (e: unknown) => toast.error(getApiErrorMessage(e));
@@ -61,8 +70,14 @@ export default function AdminPage() {
     onSuccess: refresh,
     onError,
   });
-  const closeLost = useMutation({mutationFn: adminCloseLost, onSuccess: refresh, onError});
-  const closeFound = useMutation({mutationFn: adminCloseFound, onSuccess: refresh, onError});
+  const reviewImage = useMutation({
+    mutationFn: ({id, action}: {id: string; action: 'approve' | 'remove'}) => reviewImageFlag(id, action),
+    onSuccess: (_, v) => {
+      toast.ok(v.action === 'remove' ? 'ลบรูปแล้ว' : 'อนุมัติรูปแล้ว');
+      refresh();
+    },
+    onError,
+  });
   const setBlocked = useMutation({
     mutationFn: ({id, blocked}: {id: string; blocked: boolean}) => adminSetUserBlocked(id, blocked),
     onSuccess: (_, v) => {
@@ -79,15 +94,6 @@ export default function AdminPage() {
     },
     onError,
   });
-  const setHidden = useMutation({
-    mutationFn: ({kind, id, hidden}: {kind: 'lost' | 'found'; id: string; hidden: boolean}) => adminSetPostHidden(kind, id, hidden),
-    onSuccess: (_, v) => {
-      toast.ok(v.hidden ? 'ซ่อนประกาศแล้ว' : 'แสดงประกาศอีกครั้งแล้ว');
-      refresh();
-    },
-    onError,
-  });
-
   if (!isAdmin) return <Navigate to="/" replace />;
 
   const ask = async (options: ConfirmOptions, run: () => void) => {
@@ -109,49 +115,16 @@ export default function AdminPage() {
     {label: 'ประกาศพบ', value: m?.found_active, tone: 'tone-mint', icon: HeartHandshake},
     {label: 'รายงานรอตรวจ', value: m?.reports_open, tone: 'tone-butter', icon: Flag},
     {label: 'รอยืนยันเจ้าของ', value: m?.ownership_pending, tone: 'tone-sky', icon: ShieldCheck},
+    {label: 'รูปรอตรวจ', value: m?.images_flagged, tone: 'tone-pink', icon: ImageOff},
   ];
   const pendingOwnership = ownership.data?.filter(o => o.status === 'pending') ?? [];
-  const lostRows = lost.data?.filter(p => VISIBLE_POST_STATUSES.includes(p.status)) ?? [];
-  const foundRows = found.data?.filter(p => VISIBLE_POST_STATUSES.includes(p.status)) ?? [];
-
-  const postActions = (kind: 'lost' | 'found', id: string, status: string) => (
-    <div className="btn-row admin-actions">
-      {isSuper ? (
-        status === 'hidden' ? (
-          <button className="btn btn-sm btn-mint" onClick={() => setHidden.mutate({kind, id, hidden: false})}>
-            <Eye size={14} /> แสดง
-          </button>
-        ) : (
-          <button
-            className="btn btn-sm btn-soft"
-            onClick={() =>
-              void ask({title: 'ซ่อนประกาศนี้?', message: 'ประกาศจะไม่แสดงต่อผู้ใช้ทั่วไป จนกว่าจะกดแสดงอีกครั้ง', confirmLabel: 'ซ่อน', tone: 'danger'}, () =>
-                setHidden.mutate({kind, id, hidden: true}),
-              )
-            }>
-            <EyeOff size={14} /> ซ่อน
-          </button>
-        )
-      ) : null}
-      {status === 'active' ? (
-        <button
-          className="btn btn-sm btn-soft"
-          onClick={() =>
-            void ask({title: 'ปิดประกาศนี้?', message: 'ประกาศจะไม่แสดงบนหน้าแรกและแผนที่อีก', confirmLabel: 'ปิดประกาศ', tone: 'danger'}, () =>
-              (kind === 'lost' ? closeLost : closeFound).mutate(id),
-            )
-          }>
-          ปิด
-        </button>
-      ) : null}
-    </div>
-  );
 
   return (
     <div className="page">
       <PageTitle
         title="ผู้ดูแลระบบ"
         subtitle={isSuper ? 'Super Admin · บล็อกผู้ใช้ ซ่อนประกาศ และจัดการสิทธิ์' : 'ภาพรวมและงานที่รอดำเนินการ'}
+        action={<Link to="/admin/intake" className="btn btn-primary">เพิ่มประกาศ</Link>}
       />
       {metrics.isLoading ? (
         <CatLoader label="กำลังรวบรวมสถิติ" />
@@ -168,31 +141,35 @@ export default function AdminPage() {
       )}
 
       <div className="card form">
-        <SectionTitle title="จัดการผู้ใช้" />
+        <SectionTitle title="จัดการผู้ใช้" action={users.data ? <span className="muted small">ทั้งหมด {users.data.total} คน</span> : undefined} />
         <label className="admin-search">
           <Search size={16} />
           <input
             className="input"
             placeholder="ค้นหาชื่อหรืออีเมล"
             value={userQuery}
-            onChange={e => setUserQuery(e.target.value)}
+            onChange={e => {
+              setUserQuery(e.target.value);
+              setUserPage(1);
+            }}
           />
         </label>
         {!isSuper ? <p className="muted small">เฉพาะ Super Admin เท่านั้นที่บล็อกผู้ใช้และเปลี่ยนสิทธิ์ได้</p> : null}
-        <div className="list admin-users">
-          {users.data?.map(u => {
+        <div className={`list admin-users ${users.isPlaceholderData ? 'is-loading' : ''}`}>
+          {users.data?.items.map(u => {
             const blocked = u.status === 'blocked' || u.status === 'suspended';
             const editable = isSuper && u.id !== user?.id && u.role !== 'super_admin';
             return (
-              <div key={u.id} className={`list-item admin-user ${blocked ? 'is-blocked' : ''}`}>
+              <div key={u.id} className={`admin-user ${blocked ? 'is-blocked' : ''}`}>
                 <Avatar name={u.display_name} url={u.avatar_url} />
-                <div className="grow">
-                  <b>{u.display_name}</b>
+                <div className="admin-user-info">
+                  <div className="admin-user-name">
+                    <b>{u.display_name}</b>
+                    {isStaff(u.role) ? <span className="badge tone-lavender">{roleLabel(u.role)}</span> : null}
+                    {blocked ? <StatusBadge status={u.status} /> : null}
+                  </div>
                   <p>{u.email}</p>
-                </div>
-                <div className="admin-user-badges">
-                  {isStaff(u.role) ? <span className="badge tone-lavender">{roleLabel(u.role)}</span> : null}
-                  {blocked ? <StatusBadge status={u.status} /> : null}
+                  <span>สมัคร {timeAgo(u.created_at)}</span>
                 </div>
                 {editable ? (
                   <div className="btn-row admin-actions">
@@ -224,8 +201,21 @@ export default function AdminPage() {
               </div>
             );
           })}
-          {users.data && !users.data.length ? <p className="muted small">ไม่พบผู้ใช้</p> : null}
+          {users.data && !users.data.items.length ? <p className="muted small">ไม่พบผู้ใช้</p> : null}
         </div>
+        {userPages > 1 ? (
+          <div className="pager">
+            <button className="btn btn-sm btn-soft" disabled={userPage <= 1} onClick={() => setUserPage(p => p - 1)}>
+              <ChevronLeft size={16} /> ก่อนหน้า
+            </button>
+            <span className="small muted">
+              หน้า {userPage} / {userPages}
+            </span>
+            <button className="btn btn-sm btn-soft" disabled={userPage >= userPages} onClick={() => setUserPage(p => p + 1)}>
+              ถัดไป <ChevronRight size={16} />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-2">
@@ -298,38 +288,50 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="grid grid-2">
-        <div className="card form">
-          <SectionTitle title={`ประกาศหาย (${lostRows.length})`} />
+      <div className="card form">
+        <SectionTitle title="รูปที่ AI ตรวจพบ" />
+        <p className="muted small">รูปที่ถูกปฏิเสธไม่ได้ถูกเก็บไว้ ส่วนรูปที่ “รอตรวจ” แสดงอยู่บนเว็บแล้ว กดลบได้ถ้าไม่เหมาะสม</p>
+        {imageFlags.data?.length ? (
           <div className="list">
-            {lostRows.map(p => (
-              <div key={p.id} className="list-item" style={{boxShadow: 'none', background: 'var(--surface-soft)', flexWrap: 'wrap'}}>
+            {imageFlags.data.map(f => (
+              <div key={f.id} className="list-item" style={{boxShadow: 'none', background: 'var(--surface-soft)', flexWrap: 'wrap'}}>
+                {f.url ? (
+                  <a href={f.url} target="_blank" rel="noreferrer">
+                    <img src={f.url} alt="" style={{width: 64, height: 64, objectFit: 'cover', borderRadius: 12, filter: 'blur(6px)'}} />
+                  </a>
+                ) : (
+                  <div className="quick-icon tone-pink"><ImageOff size={20} /></div>
+                )}
                 <div className="grow">
-                  <b>{p.pet?.name ?? p.title}</b>
-                  <p>{p.location_text} · {timeAgo(p.created_at)}</p>
+                  <b>{IMAGE_REASON[f.reason ?? ''] ?? f.reason ?? '-'} · {f.verdict === 'rejected' ? 'ปฏิเสธแล้ว' : 'รอตรวจ'}</b>
+                  <p>{f.is_guest ? 'ผู้ไม่เข้าสู่ระบบ' : 'สมาชิก'} · {timeAgo(f.created_at)}</p>
                 </div>
-                <StatusBadge status={p.status} />
-                {postActions('lost', p.id, p.status)}
+                {f.verdict === 'flagged' ? (
+                  <div className="btn-row admin-actions">
+                    <button className="btn btn-sm btn-mint" disabled={reviewImage.isPending} onClick={() => reviewImage.mutate({id: f.id, action: 'approve'})}>
+                      ใช้ได้
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      disabled={reviewImage.isPending}
+                      onClick={() =>
+                        void ask({title: 'ลบรูปนี้?', message: 'รูปจะหายจากทุกประกาศหรือแชทที่ใช้รูปนี้', confirmLabel: 'ลบรูป', tone: 'danger'}, () =>
+                          reviewImage.mutate({id: f.id, action: 'remove'}),
+                        )
+                      }>
+                      ลบรูป
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
-        </div>
-        <div className="card form">
-          <SectionTitle title={`ประกาศพบ (${foundRows.length})`} />
-          <div className="list">
-            {foundRows.map(p => (
-              <div key={p.id} className="list-item" style={{boxShadow: 'none', background: 'var(--surface-soft)', flexWrap: 'wrap'}}>
-                <div className="grow">
-                  <b>พบ{animalLabel(p.animal_type)} {p.color ?? ''}</b>
-                  <p>{p.location_text} · {timeAgo(p.created_at)}</p>
-                </div>
-                <StatusBadge status={p.status} />
-                {postActions('found', p.id, p.status)}
-              </div>
-            ))}
-          </div>
-        </div>
+        ) : (
+          <p className="muted small">ยังไม่มีรูปที่ถูกตรวจพบ</p>
+        )}
       </div>
+
+      <AdminPostHistory isSuper={isSuper} />
     </div>
   );
 }

@@ -109,3 +109,19 @@ def test_permissions(client):
     assert res.status_code == 200 and res.json()["data"]["role"] == "admin"
     bad = client.post(f"{API}/admin/users/{user['user']['id']}/role", headers=bearer(boss), json={"role": "super_admin"})
     assert bad.status_code == 422
+
+
+def test_admin_user_list_pages_and_searches(client):
+    boss = register(client, "boss@example.com")
+    set_role("boss@example.com", "admin")
+    for i in range(4):
+        register(client, f"member{i}@example.com")
+
+    first = client.get(f"{API}/admin/users", headers=bearer(boss), params={"page_size": 2}).json()["data"]
+    second = client.get(f"{API}/admin/users", headers=bearer(boss), params={"page_size": 2, "page": 3}).json()["data"]
+    assert first["total"] == 5 and len(first["items"]) == 2 and len(second["items"]) == 1
+    assert first["items"][0]["email"] == "member3@example.com"
+    assert second["items"][0]["email"] == "boss@example.com"
+
+    found = client.get(f"{API}/admin/users", headers=bearer(boss), params={"q": "MEMBER1"}).json()["data"]
+    assert found["total"] == 1 and found["items"][0]["email"] == "member1@example.com"

@@ -141,6 +141,11 @@ export async function getFoundPost(id: string) {
   return response.data.data;
 }
 
+export async function recordPostView(kind: 'lost' | 'found', id: string) {
+  const response = await api.post<ApiSuccess<{view_count: number}>>(`/${kind}-posts/${id}/view`);
+  return response.data.data;
+}
+
 export async function listSightings(lostPostId: string) {
   const response = await api.get<ApiSuccess<Sighting[]>>(`/lost-posts/${lostPostId}/sightings`);
   return response.data.data;

@@ -1,7 +1,7 @@
 import {useLocation, useNavigate} from 'react-router-dom';
 
 import {useLoginPrompt} from '../store/loginPromptStore';
-import {PetMascot} from './PetMascot';
+import {PetScene} from './PetScene';
 import {Modal} from './ui';
 
 function useAuthNav() {
@@ -18,10 +18,7 @@ function GateBody({message, onNavigate}: {message: string; onNavigate?: () => vo
   };
   return (
     <div className="login-gate">
-      <div className="login-gate-pets">
-        <PetMascot type="dog" size={76} />
-        <PetMascot type="cat" size={76} />
-      </div>
+      <PetScene variant="gate" />
       <p>{message}</p>
       <div className="auth-guide login-gate-guide">
         <b className="login-gate-lead">อีกนิดเดียว ก็เริ่มแจ้งเรื่องน้องได้แล้ว</b>

@@ -1,6 +1,6 @@
 import {useNavigate, useParams} from 'react-router-dom';
 import {useMutation, useQuery} from '@tanstack/react-query';
-import {Clock, HeartHandshake, MapPin, MessageCircle, PartyPopper, Pencil, Share2, XCircle} from 'lucide-react';
+import {Clock, Eye, HeartHandshake, MapPin, MessageCircle, PartyPopper, Pencil, Share2, XCircle} from 'lucide-react';
 
 import {getFoundPost} from '../api/community.api';
 import {contactFoundReporter} from '../api/chat.api';
@@ -9,12 +9,15 @@ import {getApiErrorMessage} from '../api/client';
 import {useAuthStore} from '../store/authStore';
 import {useRequireLogin} from '../store/loginPromptStore';
 import {toast} from '../store/toastStore';
-import {animalLabel, colorPhrase, formatDateTime, statusLabel, statusTone, timeAgo} from '../lib/format';
+import {animalLabel, colorPhrase, formatDateTime, statusLabel, statusTone, timeAgo, viewsLabel} from '../lib/format';
+import {isStaff} from '../lib/roles';
+import {usePostView} from '../lib/postViews';
 import {MapView} from '../components/MapView';
 import {PostGallery} from '../components/MediaImage';
 import {CatLoader} from '../components/CatLoader';
 import {ReportButton} from '../components/ReportButton';
 import {EmptyState, StatusBadge} from '../components/ui';
+import {AdminPrivateNote} from '../components/AdminPrivateNote';
 import {sharePage} from '../lib/share';
 import {useUserPosition} from '../lib/geo';
 import {usePostAction} from '../lib/postActions';
@@ -25,6 +28,7 @@ export default function FoundDetailPage() {
   const me = useAuthStore(s => s.user);
   const requireLogin = useRequireLogin();
   const post = useQuery({queryKey: ['found-post', id], queryFn: () => getFoundPost(id)});
+  usePostView('found', id, post.isSuccess);
   const {position: myPosition} = useUserPosition({prompt: false});
 
   const {run, pending} = usePostAction('found', id, 'พบน้อง');
@@ -63,7 +67,14 @@ export default function FoundDetailPage() {
           <div className="card" style={{display: 'flex', flexDirection: 'column', gap: 12}}>
             <div className="section-title">
               <div>
-                <span className="badge badge-found"><HeartHandshake size={13} /> มีคนพบน้อง</span>
+                <span style={{display: 'inline-flex', gap: 8, flexWrap: 'wrap'}}>
+                  {p.is_guest ? (
+                    <span className="badge badge-found"><Eye size={13} /> เบาะแสจากผู้ไม่ระบุตัวตน</span>
+                  ) : (
+                    <span className="badge badge-found"><HeartHandshake size={13} /> มีคนพบน้อง</span>
+                  )}
+                  {p.created_by_admin ? <span className="badge badge-admin">เพิ่มโดยแอดมิน</span> : null}
+                </span>
                 <h1 style={{fontSize: 28, marginTop: 8}}>
                   พบ{animalLabel(p.animal_type)}
                   {p.color ? ` ${colorPhrase(p.color)}` : ''}
@@ -75,12 +86,14 @@ export default function FoundDetailPage() {
             <div className="post-meta" style={{fontSize: 14}}>
               <span><MapPin size={15} /> {p.location_text || `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`}</span>
               <span><Clock size={15} /> {formatDateTime(p.found_at)} ({timeAgo(p.found_at)})</span>
+              <span><Eye size={15} /> {viewsLabel(p.view_count)}</span>
             </div>
             {p.description ? <p style={{lineHeight: 1.6}}>{p.description}</p> : null}
             <div style={{display: 'flex', justifyContent: 'flex-end'}}>
               {!isReporter ? <ReportButton targetType="found_post" targetId={p.id} /> : null}
             </div>
           </div>
+          {isStaff(me?.role) && p.created_by_admin ? <AdminPrivateNote post={p} /> : null}
           <div className="card">
             <MapView
               center={p}
@@ -111,6 +124,13 @@ export default function FoundDetailPage() {
               ) : (
                 <p className="muted">ประกาศนี้ปิดแล้ว</p>
               )}
+            </>
+          ) : p.is_guest ? (
+            <>
+              <h3>นี่น้องของคุณหรือเปล่า?</h3>
+              <p className="muted small">
+                เบาะแสนี้แจ้งโดยไม่เข้าสู่ระบบ จึงติดต่อผู้แจ้งไม่ได้ ลองไปดูบริเวณที่ปักหมุดไว้ และสอบถามคนแถวนั้น
+              </p>
             </>
           ) : (
             <>

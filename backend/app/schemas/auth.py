@@ -7,10 +7,16 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=120)
+    accept_privacy: bool = False
+    accept_data_access: bool = False
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
+    password: str
+
+
+class DeleteAccountRequest(BaseModel):
     password: str
 
 

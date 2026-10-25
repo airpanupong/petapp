@@ -87,15 +87,27 @@ def metrics(db: Session = Depends(get_db), _: User = Depends(require_admin)):
 @router.get("/users")
 def list_users(
     q: str | None = Query(default=None, max_length=120),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    stmt = select(User).order_by(User.created_at.desc()).limit(200)
+    stmt = select(User)
     if q and q.strip():
         term = f"%{q.strip().lower()}%"
         stmt = stmt.where(or_(func.lower(User.email).like(term), func.lower(User.display_name).like(term)))
-    rows = db.scalars(stmt).all()
-    return success([UserRead.model_validate(x).model_dump(mode="json") for x in rows])
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    rows = db.scalars(
+        stmt.order_by(User.created_at.desc(), User.id.desc()).offset((page - 1) * page_size).limit(page_size)
+    ).all()
+    return success(
+        {
+            "items": [UserRead.model_validate(x).model_dump(mode="json") for x in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )
 
 
 @router.post("/users/{user_id}/block")

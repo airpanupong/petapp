@@ -1,0 +1,16 @@
+{
+  "name": "pethaii-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd ../../web && VITE_API_BASE_URL=${VITE_API_BASE_URL:-https://api.pethaii.com/api/v1} npx vite build --outDir ../cloudflare/web/dist --emptyOutDir",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "wrangler": "^4.146.0"
+  }
+}

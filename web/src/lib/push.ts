@@ -81,3 +81,9 @@ export async function detachPushSubscription() {
   const sub = await currentSubscription();
   if (sub) await removeWebPushSubscription(sub.endpoint);
 }
+
+export async function unsubscribeLocalPush() {
+  if (!pushSupported()) return;
+  const sub = await currentSubscription();
+  await sub?.unsubscribe();
+}

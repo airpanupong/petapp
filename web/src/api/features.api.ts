@@ -5,6 +5,7 @@ import {
   EmergencyInfo,
   Guardian,
   HealthProfile,
+  LostPost,
   NotificationPreference,
   OwnershipVerification,
   Vaccination,
@@ -143,6 +144,13 @@ export async function getFollowStatus(postId: string) {
 export async function followLostCase(postId: string) {
   const r = await api.post<ApiSuccess<{following: boolean}>>(`/lost-posts/${postId}/follow`);
   return r.data.data.following;
+}
+
+export type FollowedCase = LostPost & {followed_at: string; cursor: string};
+
+export async function listFollowingCases(params: {before?: string; limit?: number} = {}) {
+  const r = await api.get<ApiSuccess<FollowedCase[]>>('/me/following-cases', {params});
+  return r.data.data;
 }
 
 export async function unfollowLostCase(postId: string) {
